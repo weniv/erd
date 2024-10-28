@@ -95,14 +95,12 @@ class PrototypingTool {
     
         // 디바이스 프리셋
         this.devicePresets = {
+            'basic': { width: 3840, height: 2160 },
             'desktop': { width: 1920, height: 1080 },
             'laptop': { width: 1366, height: 768 },
-            'iphone12': { width: 390, height: 844 },
-            'galaxy': { width: 412, height: 915 },
-            'ipad': { width: 820, height: 1180 },
             'custom': { width: null, height: null }
         };
-        this.currentDevice = 'desktop';
+        this.currentDevice = 'basic';
         this.snapThreshold = 9; // 스냅이 작동할 거리 (픽셀)
         this.snapEnabled = true; // 스냅 기능 활성화 여부
     
