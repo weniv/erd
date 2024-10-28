@@ -1140,7 +1140,7 @@ h2 {
     background: white;
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    overflow: hidden;
+    /* overflow: hidden; */
 }
 
 .table-container {
@@ -1148,6 +1148,7 @@ h2 {
     flex-direction: column;
     height: 100%;
     background: white;
+    border-radius: 4px;
 }
 
 .table-container table {
@@ -1244,4 +1245,23 @@ h2 {
 .constraint-option:hover {
     background: #EB455F;
     color: white;
+}
+
+.table-name-container {
+    margin-bottom: 8px;
+}
+
+.table-name-container input {
+    border: 1px solid #BAD7E9;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 14px;
+    color: #2B3467;
+    background: white;
+}
+
+.table-name-container input:focus {
+    outline: none;
+    border-color: #2B3467;
+    box-shadow: 0 0 0 2px rgba(43, 52, 103, 0.1);
 }

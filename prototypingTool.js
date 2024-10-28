@@ -642,10 +642,11 @@ class PrototypingTool {
             id: Date.now(),
             type: 'table',
             name: this.generateElementName('table'),
+            tableName: '',
             x: 100,
             y: 100,
-            width: 300,
-            height: 200,
+            width: 600,
+            height: 400,
             columns: [
                 {
                     name: 'id',
@@ -679,12 +680,53 @@ class PrototypingTool {
 
     // Table 렌더링 메서드 수정
     renderTableElement(element, container) {
+        if (container.firstChild) {
+            container.innerHTML = '';
+        }
+
         container.innerHTML = '';
         const table = document.createElement('table');
         table.style.width = '100%';
         table.style.borderCollapse = 'collapse';
         table.style.fontSize = `${element.fontSize}px`;
         table.style.color = element.textColor;
+
+        // 테이블 이름 입력 필드 추가
+        const nameContainer = document.createElement('div');
+        nameContainer.className = 'table-name-container';
+        nameContainer.style.padding = '8px';
+        nameContainer.style.backgroundColor = element.headerBgColor;
+        nameContainer.style.color = element.headerTextColor;
+        nameContainer.style.fontWeight = 'bold';
+        nameContainer.style.borderBottom = `2px solid ${element.borderColor}`;
+        nameContainer.style.display = 'flex';
+        nameContainer.style.alignItems = 'center';
+        nameContainer.style.gap = '8px';
+
+        const nameLabel = document.createElement('span');
+        nameLabel.textContent = 'Table Name:';
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = element.tableName || '';
+        nameInput.placeholder = 'Enter table name';
+        nameInput.style.padding = '4px 8px';
+        nameInput.style.border = `1px solid ${element.borderColor}`;
+        nameInput.style.borderRadius = '4px';
+        nameInput.style.backgroundColor = '#fff';
+        nameInput.style.color = '#333';
+        nameInput.style.width = '200px';
+        nameInput.style.fontSize = '14px';
+
+        nameInput.addEventListener('change', () => {
+            element.tableName = nameInput.value;
+            this.saveHistory();
+        });
+
+        nameContainer.appendChild(nameLabel);
+        nameContainer.appendChild(nameInput);
+        container.appendChild(nameContainer);
+
 
         // 테이블 헤더
         const thead = document.createElement('thead');
@@ -914,7 +956,14 @@ class PrototypingTool {
             constraints: [],
             description: ''
         });
-        this.renderElement(element);
+
+        // 기존 테이블을 직접 업데이트
+        const elementDiv = document.getElementById(`element-${element.id}`);
+        const container = elementDiv.querySelector('.table-container');
+        if (container) {
+            this.renderTableElement(element, container);
+        }
+        
         this.saveHistory();
     }
 
@@ -1252,17 +1301,24 @@ class PrototypingTool {
             
 
             table: () => {
+                // 드래그 중인 경우 기존 컨테이너 재사용
+                const existingContainer = document.querySelector(`#element-${element.id} .table-container`);
+                if (existingContainer && this.draggedElement === element) {
+                    return existingContainer;
+                }
+                
+                // 새 컨테이너 생성
                 const container = document.createElement('div');
                 container.className = 'table-container';
                 container.style.width = '100%';
                 container.style.height = '100%';
                 container.style.overflow = 'auto';
                 
-                // renderTableElement 호출
+                // 테이블 렌더링
                 this.renderTableElement(element, container);
                 
                 return container;
-            }
+            },
             
         };
     
