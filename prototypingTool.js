@@ -678,30 +678,43 @@ class PrototypingTool {
         return data;
     }
 
-    // Table 렌더링 메서드 수정
+    // renderTableElement 메서드 수정
     renderTableElement(element, container) {
+        // 기존 컨테이너의 모든 내용을 제거하기 전에 이벤트 리스너도 정리
         if (container.firstChild) {
+            const oldElements = container.querySelectorAll('*');
+            oldElements.forEach(el => {
+                const clonedEl = el.cloneNode(true);
+                el.parentNode.replaceChild(clonedEl, el);
+            });
             container.innerHTML = '';
         }
 
-        container.innerHTML = '';
+        // 테이블 요소의 고유 ID 설정
+        const tableId = `table-${element.id}`;
+        container.id = tableId;
+
         const table = document.createElement('table');
         table.style.width = '100%';
         table.style.borderCollapse = 'collapse';
         table.style.fontSize = `${element.fontSize}px`;
         table.style.color = element.textColor;
 
-        // 테이블 이름 입력 필드 추가
+        // 테이블 헤더 컨테이너
         const nameContainer = document.createElement('div');
-        nameContainer.className = 'table-name-container';
+        nameContainer.className = 'table-header-container';
         nameContainer.style.padding = '8px';
         nameContainer.style.backgroundColor = element.headerBgColor;
         nameContainer.style.color = element.headerTextColor;
         nameContainer.style.fontWeight = 'bold';
         nameContainer.style.borderBottom = `2px solid ${element.borderColor}`;
-        nameContainer.style.display = 'flex';
-        nameContainer.style.alignItems = 'center';
-        nameContainer.style.gap = '8px';
+
+        // 테이블 이름 입력 필드
+        const nameWrapper = document.createElement('div');
+        nameWrapper.style.flex = '1';
+        nameWrapper.style.display = 'flex';
+        nameWrapper.style.alignItems = 'center';
+        nameWrapper.style.gap = '8px';
 
         const nameLabel = document.createElement('span');
         nameLabel.textContent = 'Table Name:';
@@ -710,23 +723,32 @@ class PrototypingTool {
         nameInput.type = 'text';
         nameInput.value = element.tableName || '';
         nameInput.placeholder = 'Enter table name';
-        nameInput.style.padding = '4px 8px';
-        nameInput.style.border = `1px solid ${element.borderColor}`;
-        nameInput.style.borderRadius = '4px';
-        nameInput.style.backgroundColor = '#fff';
-        nameInput.style.color = '#333';
-        nameInput.style.width = '200px';
-        nameInput.style.fontSize = '14px';
+        nameInput.className = 'table-name-input';
 
-        nameInput.addEventListener('change', () => {
+        // 이벤트 리스너에 고유 식별자 추가
+        const inputHandler = () => {
             element.tableName = nameInput.value;
             this.saveHistory();
-        });
+        };
+        nameInput.addEventListener('change', inputHandler);
 
-        nameContainer.appendChild(nameLabel);
-        nameContainer.appendChild(nameInput);
-        container.appendChild(nameContainer);
+        // Add Column 버튼
+        const addColumnBtn = document.createElement('button');
+        addColumnBtn.className = 'table-add-column-btn';
+        addColumnBtn.innerHTML = '+';
+        addColumnBtn.title = 'Add Column';
+        
+        // 버튼 클릭 이벤트에 고유 식별자 추가
+        const addColumnHandler = (e) => {
+            e.stopPropagation();
+            this.addNewColumn(element);
+        };
+        addColumnBtn.addEventListener('click', addColumnHandler);
 
+        nameWrapper.appendChild(nameLabel);
+        nameWrapper.appendChild(nameInput);
+        nameContainer.appendChild(nameWrapper);
+        nameContainer.appendChild(addColumnBtn);
 
         // 테이블 헤더
         const thead = document.createElement('thead');
@@ -747,58 +769,90 @@ class PrototypingTool {
         // 테이블 바디
         const tbody = document.createElement('tbody');
         element.columns.forEach((column, rowIndex) => {
-            const row = document.createElement('tr');
-            
-            // 컬럼명 셀
-            const nameCell = this.createEditableCell(element, column, 'name', rowIndex);
-            
-            // 타입 셀
-            const typeCell = this.createTypeCell(element, column, rowIndex);
-            
-            // 제약조건 셀
-            const constraintsCell = this.createConstraintsCell(element, column, rowIndex);
-            
-            // 설명 셀
-            const descriptionCell = this.createEditableCell(element, column, 'description', rowIndex);
-
-            // 셀들을 행에 추가
-            row.appendChild(nameCell);
-            row.appendChild(typeCell);
-            row.appendChild(constraintsCell);
-            row.appendChild(descriptionCell);
-
+            const row = this.createTableRow(element, column, rowIndex);
             tbody.appendChild(row);
         });
         table.appendChild(tbody);
 
-        // 새 컬럼 추가 버튼
-        const addButton = document.createElement('button');
-        addButton.textContent = '+ Add Column';
-        addButton.className = 'add-column-btn';
-        addButton.onclick = () => this.addNewColumn(element);
-
-        // 버튼을 감싸는 컨테이너 추가
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'button-container';
-        buttonContainer.appendChild(addButton);
-
         container.appendChild(nameContainer);
         container.appendChild(table);
-        container.appendChild(buttonContainer);
 
-        // DOM이 렌더링된 후 높이 계산
-        setTimeout(() => {
-            const totalHeight = 
-                nameContainer.offsetHeight + 
-                table.offsetHeight + 
-                buttonContainer.offsetHeight;
-            
-            element.height = totalHeight + 55;
+        // 높이 계산 및 설정
+        requestAnimationFrame(() => {
+            const totalHeight = nameContainer.offsetHeight + table.offsetHeight;
+            element.height = totalHeight + 26;
             const elementDiv = document.getElementById(`element-${element.id}`);
             if (elementDiv) {
                 elementDiv.style.height = `${element.height}px`;
             }
-        }, 0);
+        });
+
+        // 요소에 데이터 속성 추가
+        container.dataset.tableId = element.id;
+    }
+
+    // 테이블 행 생성을 별도의 메서드로 분리
+    createTableRow(element, column, rowIndex) {
+        const row = document.createElement('tr');
+        row.className = 'table-row';
+        row.dataset.rowIndex = rowIndex;
+
+        // 컬럼명 셀
+        const nameCell = this.createEditableCell(element, column, 'name', rowIndex);
+        
+        // 타입 셀
+        const typeCell = this.createTypeCell(element, column, rowIndex);
+        
+        // 제약조건 셀
+        const constraintsCell = this.createConstraintsCell(element, column, rowIndex);
+        
+        // 설명 셀
+        const descriptionCell = this.createEditableCell(element, column, 'description', rowIndex);
+
+        // 삭제 버튼
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'column-delete-btn';
+        deleteBtn.innerHTML = '×';
+        deleteBtn.title = 'Delete Column';
+        
+        // 삭제 버튼 이벤트 핸들러
+        const deleteHandler = (e) => {
+            e.stopPropagation();
+            if (confirm('Delete this column?')) {
+                element.columns.splice(rowIndex, 1);
+                // 테이블 전체를 다시 렌더링하는 대신 현재 행만 제거
+                row.remove();
+                // 높이 재계산
+                this.updateTableHeight(element);
+                this.saveHistory();
+            }
+        };
+        deleteBtn.addEventListener('click', deleteHandler);
+
+        nameCell.style.position = 'relative';
+        nameCell.appendChild(deleteBtn);
+
+        row.appendChild(nameCell);
+        row.appendChild(typeCell);
+        row.appendChild(constraintsCell);
+        row.appendChild(descriptionCell);
+
+        return row;
+    }
+
+    // 테이블 높이 업데이트를 위한 새로운 메서드
+    updateTableHeight(element) {
+        const elementDiv = document.getElementById(`element-${element.id}`);
+        if (elementDiv) {
+            const container = elementDiv.querySelector('.table-container');
+            if (container) {
+                const nameContainer = container.querySelector('.table-header-container');
+                const table = container.querySelector('table');
+                const totalHeight = nameContainer.offsetHeight + table.offsetHeight;
+                element.height = totalHeight + 20;
+                elementDiv.style.height = `${element.height}px`;
+            }
+        }
     }
 
     createEditableCell(element, column, property, rowIndex) {
@@ -876,31 +930,63 @@ class PrototypingTool {
         cell.style.padding = `${element.cellPadding}px`;
         cell.style.border = `1px solid ${element.borderColor}`;
         cell.style.backgroundColor = element.cellBgColor;
-
+        cell.className = 'constraints-cell';
+    
         const constraintsContainer = document.createElement('div');
         constraintsContainer.className = 'constraints-container';
         constraintsContainer.style.display = 'flex';
         constraintsContainer.style.flexWrap = 'wrap';
         constraintsContainer.style.gap = '4px';
-
-        column.constraints.forEach((constraint, index) => {
-            const badge = this.createConstraintBadge(constraint, () => {
-                column.constraints.splice(index, 1);
-                this.renderElement(element);
-                this.saveHistory();
-            });
-            constraintsContainer.appendChild(badge);
-        });
-
+    
+        // 제약조건 배지들 생성
+        this.renderConstraintBadges(constraintsContainer, element, column, rowIndex);
+    
         // 제약조건 추가 버튼
         const addButton = document.createElement('button');
         addButton.textContent = '+';
         addButton.className = 'add-constraint-btn';
-        addButton.onclick = () => this.showConstraintDialog(element, column);
-
+        addButton.onclick = (e) => {
+            e.stopPropagation();
+            this.showConstraintDialog(element, column, rowIndex, constraintsContainer);
+        };
+    
         constraintsContainer.appendChild(addButton);
         cell.appendChild(constraintsContainer);
         return cell;
+    }
+
+    renderConstraintBadges(container, element, column, rowIndex) {
+        // 기존 배지들 제거
+        container.querySelectorAll('.constraint-badge').forEach(badge => badge.remove());
+    
+        column.constraints.forEach((constraint, constraintIndex) => {
+            const badge = document.createElement('div');
+            badge.className = 'constraint-badge';
+            badge.style.backgroundColor = '#BAD7E9';
+            badge.style.padding = '2px 6px';
+            badge.style.borderRadius = '4px';
+            badge.style.fontSize = '12px';
+            badge.style.display = 'flex';
+            badge.style.alignItems = 'center';
+            badge.style.gap = '4px';
+    
+            const text = document.createElement('span');
+            text.textContent = constraint;
+            badge.appendChild(text);
+    
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = '×';
+            removeBtn.className = 'remove-constraint-btn';
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                column.constraints.splice(constraintIndex, 1);
+                badge.remove();
+                this.saveHistory();
+            };
+    
+            badge.appendChild(removeBtn);
+            container.insertBefore(badge, container.lastChild); // 추가 버튼 앞에 삽입
+        });
     }
 
     // 제약조건 배지 생성
@@ -929,7 +1015,7 @@ class PrototypingTool {
     }
 
     // 제약조건 선택 다이얼로그 표시
-    showConstraintDialog(element, column) {
+    showConstraintDialog(element, column, rowIndex, constraintsContainer) {
         const dialog = document.createElement('div');
         dialog.className = 'constraint-dialog';
         dialog.style.position = 'fixed';
@@ -941,32 +1027,56 @@ class PrototypingTool {
         dialog.style.borderRadius = '8px';
         dialog.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
         dialog.style.zIndex = '1000';
-
+    
+        const availableConstraints = this.dbConstraints.filter(c => !column.constraints.includes(c));
+    
         dialog.innerHTML = `
             <h3>Add Constraint</h3>
             <div class="constraint-options">
-                ${this.dbConstraints
-                    .filter(c => !column.constraints.includes(c))
-                    .map(c => `
-                        <button class="constraint-option" data-constraint="${c}">
-                            ${c}
-                        </button>
-                    `).join('')}
+                ${availableConstraints.map(c => `
+                    <button class="constraint-option" data-constraint="${c}">
+                        ${c}
+                    </button>
+                `).join('')}
             </div>
         `;
-
+    
+        // 제약조건 선택 이벤트
         dialog.querySelectorAll('.constraint-option').forEach(button => {
-            button.onclick = () => {
+            button.onclick = (e) => {
+                e.stopPropagation();
                 const constraint = button.dataset.constraint;
+                
+                // 제약조건 배열에 추가
                 column.constraints.push(constraint);
-                this.renderElement(element);
+                
+                // 제약조건 컨테이너만 업데이트
+                this.renderConstraintBadges(constraintsContainer, element, column, rowIndex);
+                
                 this.saveHistory();
-                dialog.remove();
+                document.body.removeChild(dialog);
             };
         });
-
+    
+        // 다이얼로그 외부 클릭 시 닫기
+        dialog.addEventListener('click', (e) => {
+            if (e.target === dialog) {
+                document.body.removeChild(dialog);
+            }
+        });
+    
+        // ESC 키로 닫기
+        const handleEsc = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(dialog);
+                document.removeEventListener('keydown', handleEsc);
+            }
+        };
+        document.addEventListener('keydown', handleEsc);
+    
         document.body.appendChild(dialog);
     }
+    
 
     // 새 컬럼 추가
     addNewColumn(element) {

@@ -1314,3 +1314,93 @@ h2 {
     height: auto;         /* 추가 */
     padding: 8px;        /* 추가 */
 }
+
+/* 테이블 헤더 컨테이너 스타일 */
+.table-header-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background-color: #2B3467;
+    color: white;
+    border-bottom: 2px solid #BAD7E9;
+}
+
+/* 테이블 이름 입력 필드 스타일 */
+.table-name-input {
+    padding: 4px 8px;
+    border: 1px solid #BAD7E9;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+    color: #2B3467;
+}
+
+.table-name-input:focus {
+    outline: none;
+    border-color: #2B3467;
+    box-shadow: 0 0 0 2px rgba(43, 52, 103, 0.1);
+}
+
+/* Add Column 버튼 스타일 */
+.table-add-column-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid white;
+    background: transparent;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    padding: 0;
+    line-height: 1;
+}
+
+.table-add-column-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* 컬럼 행 스타일 */
+.table-row {
+    position: relative;
+}
+
+/* 컬럼 삭제 버튼 스타일 */
+.column-delete-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    background: #ff4444;
+    color: white;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    padding: 0;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.table-row:hover .column-delete-btn {
+    display: flex;
+    opacity: 1;
+}
+
+.column-delete-btn:hover {
+    background: #ff0000;
+}
+
+/* 기존의 button-container 스타일 제거 */
+.button-container {
+    display: none;
+}
