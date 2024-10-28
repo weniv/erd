@@ -1149,6 +1149,7 @@ h2 {
     height: 100%;
     background: white;
     border-radius: 4px;
+    height: auto; /* height를 auto로 변경 */
 }
 
 .table-container table {
@@ -1170,7 +1171,8 @@ h2 {
 }
 
 .add-column-btn {
-    margin: 8px;
+    width: 100%;
+    margin: 0;
     padding: 8px 16px;
     background: #FCFFE7;
     border: 1px solid #BAD7E9;
@@ -1180,6 +1182,34 @@ h2 {
 }
 
 .add-column-btn:hover {
+    background: #EB455F;
+    color: white;
+}
+
+.add-column-btn.floating {
+    position: absolute;
+    bottom: -40px;  /* 테이블 아래에 떠있도록 */
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    background: #FCFFE7;
+    border: 1px solid #BAD7E9;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: #2B3467;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.element.table.selected .add-column-btn.floating {
+    opacity: 1;
+    visibility: visible;
+    bottom: -50px;  /* 호버 효과처럼 약간 아래로 내려감 */
+}
+
+.add-column-btn.floating:hover {
     background: #EB455F;
     color: white;
 }
@@ -1264,4 +1294,23 @@ h2 {
     outline: none;
     border-color: #2B3467;
     box-shadow: 0 0 0 2px rgba(43, 52, 103, 0.1);
+}
+
+/* Add Column 버튼 컨테이너 스타일 수정 */
+.button-container {
+    padding: 8px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    height: 0;            /* 추가 */
+    overflow: hidden;     /* 추가 */
+    padding: 0;          /* padding도 0으로 변경 */
+}
+
+/* 테이블이 선택되었을 때 버튼 표시 */
+.element.table.selected .button-container {
+    opacity: 1;
+    visibility: visible;
+    height: auto;         /* 추가 */
+    padding: 8px;        /* 추가 */
 }

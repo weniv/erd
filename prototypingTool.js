@@ -777,8 +777,28 @@ class PrototypingTool {
         addButton.className = 'add-column-btn';
         addButton.onclick = () => this.addNewColumn(element);
 
+        // 버튼을 감싸는 컨테이너 추가
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'button-container';
+        buttonContainer.appendChild(addButton);
+
+        container.appendChild(nameContainer);
         container.appendChild(table);
-        container.appendChild(addButton);
+        container.appendChild(buttonContainer);
+
+        // DOM이 렌더링된 후 높이 계산
+        setTimeout(() => {
+            const totalHeight = 
+                nameContainer.offsetHeight + 
+                table.offsetHeight + 
+                buttonContainer.offsetHeight;
+            
+            element.height = totalHeight + 55;
+            const elementDiv = document.getElementById(`element-${element.id}`);
+            if (elementDiv) {
+                elementDiv.style.height = `${element.height}px`;
+            }
+        }, 0);
     }
 
     createEditableCell(element, column, property, rowIndex) {
