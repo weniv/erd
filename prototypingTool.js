@@ -1,3 +1,379 @@
+// 연결선 관리 및 편집 기능 강화
+class ConnectionManager {
+    constructor(tool) {
+        this.tool = tool;
+        
+        this.selectConnection = this.selectConnection.bind(this);
+        this.showRelationEditDialog = this.showRelationEditDialog.bind(this);
+
+        this.initializeConnectionControls();
+    }
+
+    initializeConnectionControls() {
+        // 연결선 컨텍스트 메뉴 초기화
+        const canvas = document.getElementById('canvas');
+        canvas.addEventListener('contextmenu', (e) => {
+            const connection = this.tool.findConnectionAtPoint(e.clientX, e.clientY);
+            if (connection) {
+                e.preventDefault();
+                this.showConnectionContextMenu(e, connection);
+            }
+        });
+
+        // 프로퍼티 패널에 연결 스타일 컨트롤 추가
+        document.getElementById('properties').addEventListener('connection-selected', (e) => {
+            const connection = e.detail;
+            this.showConnectionProperties(connection);
+        });
+    }
+
+    showConnectionContextMenu(e, connection) {
+        const menu = document.createElement('div');
+        menu.className = 'connection-context-menu';
+        menu.style.position = 'absolute';
+        menu.style.left = `${e.clientX}px`;
+        menu.style.top = `${e.clientY}px`;
+        
+        menu.innerHTML = `
+            <div class="menu-item edit">편집</div>
+            <div class="menu-item style">스타일</div>
+            <div class="menu-item route">경로 조정</div>
+            <div class="menu-item delete">삭제</div>
+        `;
+
+        // 메뉴 이벤트 핸들러
+        menu.querySelector('.edit').onclick = () => {
+            this.showRelationEditDialog(connection);
+            document.body.removeChild(menu);
+        };
+
+        menu.querySelector('.style').onclick = () => {
+            this.showStyleEditor(connection);
+            document.body.removeChild(menu);
+        };
+
+        menu.querySelector('.route').onclick = () => {
+            this.enableRouteEditing(connection);
+            document.body.removeChild(menu);
+        };
+
+        menu.querySelector('.delete').onclick = () => {
+            if (confirm('이 관계를 삭제하시겠습니까?')) {
+                this.tool.deleteConnection(connection.id);
+            }
+            document.body.removeChild(menu);
+        };
+
+        document.body.appendChild(menu);
+
+        // 외부 클릭시 메뉴 닫기
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                document.body.removeChild(menu);
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        document.addEventListener('click', closeMenu);
+    }
+
+    showRelationEditDialog(connection) {
+        const dialog = document.createElement('div');
+        dialog.className = 'relation-dialog';
+        
+        dialog.innerHTML = `
+            <div class="dialog-content">
+                <h3>관계 편집</h3>
+                <div class="relation-options">
+                    ${this.tool.relationTypes.map(type => `
+                        <button class="relation-option ${type.name === connection.type ? 'active' : ''}"
+                                data-type="${type.name}">
+                            <span class="relation-name">${type.name}</span>
+                            <span class="relation-symbol">${type.symbol}</span>
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="additional-options">
+                    <label>
+                        <input type="checkbox" name="identifying" 
+                            ${connection.identifying ? 'checked' : ''}>
+                        식별 관계
+                    </label>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="apply-btn">적용</button>
+                    <button class="cancel-btn">취소</button>
+                </div>
+            </div>
+        `;
+    
+        // 관계 옵션 선택 스타일링
+        const handleOptionClick = (btn) => {
+            // 기존 선택 해제
+            dialog.querySelectorAll('.relation-option').forEach(b => 
+                b.classList.remove('active')
+            );
+            // 새로운 선택 활성화
+            btn.classList.add('active');
+        };
+    
+        dialog.querySelectorAll('.relation-option').forEach(button => {
+            button.onclick = () => handleOptionClick(button);
+        });
+    
+        // 현재 선택된 관계 타입에 대한 스타일 적용
+        const currentOption = dialog.querySelector(`[data-type="${connection.type}"]`);
+        if (currentOption) {
+            currentOption.classList.add('active');
+        }
+    
+        // Apply 버튼 핸들러
+        dialog.querySelector('.apply-btn').onclick = () => {
+            const activeOption = dialog.querySelector('.relation-option.active');
+            if (activeOption) {
+                const newType = activeOption.dataset.type;
+                const identifying = dialog.querySelector('[name="identifying"]').checked;
+                
+                // 연결 객체 업데이트
+                connection.type = newType;
+                connection.identifying = identifying;
+    
+                // SVG 요소 업데이트
+                const svg = document.querySelector(`[data-connection-id="${connection.id}"]`);
+                if (svg) {
+                    // 관계 타입 레이블 업데이트
+                    const text = svg.querySelector('text');
+                    if (text) {
+                        const relationSymbol = this.tool.relationTypes.find(t => t.name === newType)?.symbol;
+                        text.textContent = relationSymbol;
+                    }
+    
+                    // 식별 관계 표시 업데이트
+                    const line = svg.querySelector('line');
+                    if (line) {
+                        line.style.strokeWidth = identifying ? '3' : '2';
+                    }
+    
+                    const path = svg.querySelector('path');
+                    if (path) {
+                        path.style.strokeWidth = identifying ? '3' : '2';
+                    }
+                }
+    
+                this.tool.saveHistory();
+            }
+            document.body.removeChild(dialog);
+        };
+    
+        // Cancel 버튼 핸들러
+        dialog.querySelector('.cancel-btn').onclick = () => {
+            document.body.removeChild(dialog);
+        };
+    
+        // ESC 키 핸들러 추가
+        const handleEsc = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(dialog);
+                document.removeEventListener('keydown', handleEsc);
+            }
+        };
+        document.addEventListener('keydown', handleEsc);
+    
+        document.body.appendChild(dialog);
+    }
+
+    showStyleEditor(connection) {
+        const dialog = document.createElement('div');
+        dialog.className = 'connection-style-dialog';
+        
+        dialog.innerHTML = `
+            <div class="dialog-content">
+                <h3>연결선 스타일</h3>
+                <div class="style-options">
+                    <div class="style-option">
+                        <label>색상</label>
+                        <input type="color" class="color-picker" value="${connection.color || '#2196f3'}">
+                    </div>
+                    <div class="style-option">
+                        <label>선 두께</label>
+                        <input type="range" min="1" max="5" value="${connection.strokeWidth || 2}" class="width-slider">
+                    </div>
+                    <div class="style-option">
+                        <label>선 스타일</label>
+                        <select class="line-style">
+                            <option value="solid" ${connection.lineStyle === 'solid' ? 'selected' : ''}>실선</option>
+                            <option value="dashed" ${connection.lineStyle === 'dashed' ? 'selected' : ''}>점선</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="apply-btn">적용</button>
+                    <button class="cancel-btn">취소</button>
+                </div>
+            </div>
+        `;
+
+        // 스타일 변경 이벤트 핸들러
+        dialog.querySelector('.apply-btn').onclick = () => {
+            const color = dialog.querySelector('.color-picker').value;
+            const strokeWidth = dialog.querySelector('.width-slider').value;
+            const lineStyle = dialog.querySelector('.line-style').value;
+
+            this.updateConnectionStyle(connection.id, {
+                color: color,
+                strokeWidth: strokeWidth,
+                lineStyle: lineStyle
+            });
+
+            document.body.removeChild(dialog);
+        };
+
+        document.body.appendChild(dialog);
+    }
+
+    enableRouteEditing(connection) {
+        // 연결선에 조절점 추가
+        const line = document.querySelector(`[data-connection-id="${connection.id}"] line`);
+        if (!line) return;
+
+        // 기존 직선을 path로 변환
+        const path = this.createPathFromLine(line);
+        line.replaceWith(path);
+
+        // 조절점 추가
+        this.addControlPoints(path, connection);
+    }
+
+    createPathFromLine(line) {
+        const x1 = line.getAttribute('x1');
+        const y1 = line.getAttribute('y1');
+        const x2 = line.getAttribute('x2');
+        const y2 = line.getAttribute('y2');
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+        path.setAttribute('stroke', line.getAttribute('stroke'));
+        path.setAttribute('stroke-width', line.getAttribute('stroke-width'));
+
+        return path;
+    }
+
+    addControlPoints(path, connection) {
+        // path의 중간점에 조절점 추가
+        const points = path.getAttribute('d').split(' ');
+        const x1 = parseFloat(points[1]);
+        const y1 = parseFloat(points[2]);
+        const x2 = parseFloat(points[4]);
+        const y2 = parseFloat(points[5]);
+
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+
+        // 조절점 생성
+        const controlPoint = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        controlPoint.setAttribute('cx', midX);
+        controlPoint.setAttribute('cy', midY);
+        controlPoint.setAttribute('r', 5);
+        controlPoint.setAttribute('fill', '#2196f3');
+        controlPoint.setAttribute('cursor', 'move');
+
+        // 조절점 드래그 이벤트
+        this.enableControlPointDrag(controlPoint, path, connection);
+
+        path.parentNode.appendChild(controlPoint);
+    }
+
+    enableControlPointDrag(point, path, connection) {
+        let dragging = false;
+        let offset = { x: 0, y: 0 };
+
+        point.addEventListener('mousedown', (e) => {
+            dragging = true;
+            offset = {
+                x: e.clientX - parseFloat(point.getAttribute('cx')),
+                y: e.clientY - parseFloat(point.getAttribute('cy'))
+            };
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dragging) return;
+
+            const x = e.clientX - offset.x;
+            const y = e.clientY - offset.y;
+
+            point.setAttribute('cx', x);
+            point.setAttribute('cy', y);
+
+            // path 업데이트
+            this.updatePathWithControlPoint(path, {x, y}, connection);
+        });
+
+        document.addEventListener('mouseup', () => {
+            dragging = false;
+        });
+    }
+
+    updatePathWithControlPoint(path, controlPoint, connection) {
+        // path의 시작점과 끝점 가져오기
+        const points = path.getAttribute('d').split(' ');
+        const x1 = parseFloat(points[1]);
+        const y1 = parseFloat(points[2]);
+        const x2 = parseFloat(points[4]);
+        const y2 = parseFloat(points[5]);
+
+        // 곡선 path로 업데이트
+        const d = `M ${x1} ${y1} Q ${controlPoint.x} ${controlPoint.y} ${x2} ${y2}`;
+        path.setAttribute('d', d);
+
+        // 연결 객체 업데이트
+        connection.controlPoint = controlPoint;
+        this.tool.saveHistory();
+    }
+
+    updateConnection(connectionId, properties) {
+        const connection = this.tool.connections.find(c => c.id === connectionId);
+        if (!connection) return;
+
+        // 연결 속성 업데이트
+        Object.assign(connection, properties);
+
+        // SVG 요소 업데이트
+        const svg = document.querySelector(`[data-connection-id="${connectionId}"]`);
+        if (svg) {
+            // 관계 타입 레이블 업데이트
+            const text = svg.querySelector('text');
+            if (text) {
+                const relationSymbol = this.tool.relationTypes.find(t => t.name === properties.type)?.symbol;
+                text.textContent = relationSymbol;
+            }
+
+            // 식별 관계 표시 업데이트
+            const line = svg.querySelector('line');
+            if (line && properties.identifying !== undefined) {
+                line.style.strokeWidth = properties.identifying ? '3' : '2';
+            }
+        }
+
+        this.tool.saveHistory();
+    }
+
+    updateConnectionStyle(connectionId, style) {
+        const connection = this.tool.connections.find(c => c.id === connectionId);
+        if (!connection) return;
+
+        // 스타일 속성 업데이트
+        Object.assign(connection, style);
+
+        // SVG 요소 스타일 업데이트
+        const line = document.querySelector(`[data-connection-id="${connectionId}"] line`);
+        if (line) {
+            line.style.stroke = style.color;
+            line.style.strokeWidth = style.strokeWidth;
+            line.style.strokeDasharray = style.lineStyle === 'dashed' ? '5,5' : 'none';
+        }
+
+        this.tool.saveHistory();
+    }
+}
 class PrototypingTool {
     constructor() {
         this.checkMobileAccess();
@@ -50,21 +426,30 @@ class PrototypingTool {
             'CHECK'
         ]; 
 
+        // 관계 연결 관련 속성 추가
+        this.connectionStart = null;  // 연결 시작점
+        this.connectionEnd = null;    // 연결 끝점
+        this.tempLine = null;        // 임시 연결선
+        this.connections = [];       // 테이블 간 연결 저장
+        
+        // 관계 타입 정의
+        this.relationTypes = [
+            { name: 'One-to-One', symbol: '1:1' },
+            { name: 'One-to-Many', symbol: '1:N' },
+            { name: 'Many-to-One', symbol: 'N:1' },
+            { name: 'Many-to-Many', symbol: 'N:M' }
+        ];
+
         // 아이콘
         this.icons = {
             'arrow-right': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M26.0607 6.93934C26.6464 7.52513 26.6464 8.47487 26.0607 9.06066L15.1213 20L26.0607 30.9393C26.6464 31.5251 26.6464 32.4749 26.0607 33.0607C25.4749 33.6464 24.5251 33.6464 23.9393 33.0607L11.9393 21.0607C11.3536 20.4749 11.3536 19.5251 11.9393 18.9393L23.9393 6.93934C24.5251 6.35355 25.4749 6.35355 26.0607 6.93934Z" fill="currentColor"/></svg>`,
             'arrow-left': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.9393 33.0607C13.3536 32.4749 13.3536 31.5251 13.9393 30.9393L24.8787 20L13.9393 9.06066C13.3536 8.47488 13.3536 7.52513 13.9393 6.93934C14.5251 6.35355 15.4749 6.35355 16.0607 6.93934L28.0607 18.9393C28.6464 19.5251 28.6464 20.4749 28.0607 21.0607L16.0607 33.0607C15.4749 33.6464 14.5251 33.6464 13.9393 33.0607Z" fill="currentColor"/></svg>`,
-            'close': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.0607 8.93934C10.4749 8.35355 9.52513 8.35355 8.93934 8.93934C8.35355 9.52513 8.35355 10.4749 8.93934 11.0607L17.8787 20L8.93934 28.9393C8.35355 29.5251 8.35355 30.4749 8.93934 31.0607C9.52513 31.6464 10.4749 31.6464 11.0607 31.0607L20 22.1213L28.7383 30.8596C29.3241 31.4454 30.2739 31.4454 30.8596 30.8596C31.4454 30.2739 31.4454 29.3241 30.8596 28.7383L22.1213 20L30.8596 11.2617C31.4454 10.6759 31.4454 9.72614 30.8596 9.14035C30.2739 8.55456 29.3241 8.55457 28.7383 9.14035L20 17.8787L11.0607 8.93934Z" fill="currentColor"/></svg>`,
-            'menu': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M2.5 20C2.5 19.1716 3.17157 18.5 4 18.5H36C36.8284 18.5 37.5 19.1716 37.5 20C37.5 20.8284 36.8284 21.5 36 21.5H4C3.17157 21.5 2.5 20.8284 2.5 20Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M2.5 10C2.5 9.17157 3.17157 8.5 4 8.5H36C36.8284 8.5 37.5 9.17157 37.5 10C37.5 10.8284 36.8284 11.5 36 11.5H4C3.17157 11.5 2.5 10.8284 2.5 10Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M2.5 30C2.5 29.1716 3.17157 28.5 4 28.5H36C36.8284 28.5 37.5 29.1716 37.5 30C37.5 30.8284 36.8284 31.5 36 31.5H4C3.17157 31.5 2.5 30.8284 2.5 30Z" fill="currentColor"/></svg>`,
             'arrow-back': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M33.5 20C33.5 20.8284 32.8284 21.5 32 21.5H11.8799L20.009 28.8901C20.622 29.4474 20.6672 30.396 20.1099 31.009C19.5526 31.622 18.604 31.6672 17.991 31.1099L6.99099 21.1099C6.67828 20.8256 6.5 20.4226 6.5 20C6.5 19.5774 6.67828 19.1744 6.99099 18.8901L17.991 8.8901C18.604 8.33284 19.5526 8.37801 20.1099 8.991C20.6672 9.60399 20.622 10.5527 20.009 11.1099L11.8799 18.5H32C32.8284 18.5 33.5 19.1716 33.5 20Z" fill="currentColor"/></svg>`,
             'arrow-forward': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.5 20C6.5 19.1716 7.17157 18.5 8 18.5H28.1201L19.991 11.1099C19.378 10.5527 19.3328 9.604 19.8901 8.99101C20.4473 8.37802 21.396 8.33285 22.009 8.89011L33.009 18.8901C33.3217 19.1744 33.5 19.5774 33.5 20C33.5 20.4226 33.3217 20.8256 33.009 21.1099L22.009 31.1099C21.396 31.6672 20.4474 31.622 19.8901 31.009C19.3328 30.396 19.378 29.4474 19.991 28.8901L28.1201 21.5H8C7.17157 21.5 6.5 20.8284 6.5 20Z" fill="currentColor"/></svg>`,
             'arrow-up': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6.5C20.4411 6.5 20.8377 6.69041 21.1122 6.99351L31.1099 17.991C31.6672 18.604 31.622 19.5526 31.009 20.1099C30.396 20.6672 29.4474 20.622 28.8901 20.009L21.5 11.8799V32C21.5 32.8284 20.8284 33.5 20 33.5C19.1716 33.5 18.5 32.8284 18.5 32V11.8799L11.1099 20.009C10.5527 20.622 9.60399 20.6672 8.991 20.1099C8.37802 19.5526 8.33284 18.604 8.8901 17.991L18.8848 6.99684C19.1594 6.6918 19.5573 6.5 20 6.5Z" fill="currentColor"/></svg>`,
             'arrow-down': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M20 6.5C20.8284 6.5 21.5 7.17157 21.5 8V28.1201L28.8901 19.991C29.4474 19.378 30.396 19.3328 31.009 19.8901C31.622 20.4473 31.6672 21.396 31.1099 22.009L21.1099 33.009C20.8256 33.3217 20.4226 33.5 20 33.5C19.5774 33.5 19.1744 33.3217 18.8901 33.009L8.8901 22.009C8.33284 21.396 8.37801 20.4474 8.991 19.8901C9.60399 19.3328 10.5527 19.378 11.1099 19.991L18.5 28.1201V8C18.5 7.17157 19.1716 6.5 20 6.5Z" fill="currentColor"/></svg>`,
             'heart-outline': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M27.578 9.5C25.7586 9.5 22.9997 10.3073 21.3207 13.4249C21.059 13.9107 20.5518 14.2136 20 14.2136C19.4482 14.2136 18.941 13.9107 18.6793 13.4249C17.0005 10.3075 14.2415 9.50077 12.4218 9.50077C10.553 9.50077 8.78036 10.1933 7.48911 11.3962C6.2916 12.5117 5.5 14.5312 5.5 16.7746C5.5 20.6316 8.08172 27.3616 20 32.3769C31.9186 27.3615 34.5 20.6313 34.5 16.7741C34.5 14.5306 33.7084 12.511 32.5108 11.3955C31.2195 10.1925 29.4468 9.5 27.578 9.5ZM20 10.0515C22.3098 7.31893 25.384 6.5 27.578 6.5C30.1765 6.5 32.6881 7.46061 34.5557 9.20033C36.517 11.0274 37.5 13.9359 37.5 16.7741C37.5 22.2364 33.7639 30.0276 20.5646 35.3897C20.2026 35.5368 19.7975 35.5368 19.4354 35.3897C6.23646 30.0278 2.5 22.2368 2.5 16.7746C2.5 13.9365 3.48299 11.028 5.44425 9.20103C7.31178 7.46135 9.82332 6.50077 12.4218 6.50077C14.6155 6.50077 17.69 7.31901 20 10.0515Z" fill="currentColor"/></svg>`,
             'heart-fill': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M27.578 6.5C25.384 6.5 22.3098 7.31893 20 10.0515C17.69 7.31901 14.6155 6.50077 12.4218 6.50077C9.82332 6.50077 7.31178 7.46135 5.44425 9.20103C3.48299 11.028 2.5 13.9365 2.5 16.7746C2.5 22.2368 6.23646 30.0278 19.4354 35.3897C19.7975 35.5368 20.2026 35.5368 20.5646 35.3897C33.7639 30.0276 37.5 22.2364 37.5 16.7741C37.5 13.9359 36.517 11.0274 34.5557 9.20033C32.6881 7.46061 30.1765 6.5 27.578 6.5Z" fill="currentColor"/></svg>`,
-            'image': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M2.5 12C2.5 6.75329 6.75329 2.5 12 2.5H28C33.2467 2.5 37.5 6.75329 37.5 12V28C37.5 33.2467 33.2467 37.5 28 37.5H12C6.75329 37.5 2.5 33.2467 2.5 28V12ZM12 5.5C8.41015 5.5 5.5 8.41015 5.5 12V28C5.5 31.5899 8.41015 34.5 12 34.5H28C31.5899 34.5 34.5 31.5899 34.5 28V12C34.5 8.41015 31.5899 5.5 28 5.5H12Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 11.5C12.3954 11.5 11.5 12.3954 11.5 13.5C11.5 14.6046 12.3954 15.5 13.5 15.5C14.6046 15.5 15.5 14.6046 15.5 13.5C15.5 12.3954 14.6046 11.5 13.5 11.5ZM8.5 13.5C8.5 10.7386 10.7386 8.5 13.5 8.5C16.2614 8.5 18.5 10.7386 18.5 13.5C18.5 16.2614 16.2614 18.5 13.5 18.5C10.7386 18.5 8.5 16.2614 8.5 13.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M30.033 20.9425C29.0162 19.6715 27.0753 19.6956 26.0905 20.9915L21.9032 26.5011C20.1827 28.7649 17.0204 29.3441 14.6093 27.8372L12.4034 26.4585C11.4162 25.8415 10.1338 25.9875 9.3106 26.8107L5.06065 31.0607L2.93933 28.9393L7.18928 24.6894C9.00026 22.8784 11.8215 22.5571 13.9934 23.9145L16.1993 25.2932C17.2952 25.9782 18.7327 25.7149 19.5147 24.6859L23.702 19.1763C25.8687 16.3253 30.1387 16.2722 32.3757 19.0684L37.1713 25.063L34.8287 26.937L30.033 20.9425Z" fill="currentColor"/></svg>`,
-            'download': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M20 6.5C20.8284 6.5 21.5 7.17157 21.5 8L21.5 22.2984L26.9232 16.7058C27.4999 16.1111 28.4495 16.0964 29.0442 16.6731C29.6389 17.2499 29.6536 18.1995 29.0769 18.7942L21.0769 27.0442C20.7943 27.3356 20.4058 27.5 20 27.5C19.5942 27.5 19.2057 27.3356 18.9232 27.0442L10.9232 18.7942C10.3464 18.1995 10.3611 17.2499 10.9558 16.6732C11.5505 16.0964 12.5001 16.1111 13.0769 16.7058L18.5 22.2984L18.5 8C18.5 7.17157 19.1716 6.5 20 6.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6.93934 34.0607C6.65804 33.7794 6.5 33.3978 6.5 33L6.5 29C6.5 28.1716 7.17157 27.5 8 27.5C8.82843 27.5 9.5 28.1716 9.5 29L9.5 31.5L30.5 31.5L30.5 29C30.5 28.1716 31.1716 27.5 32 27.5C32.8284 27.5 33.5 28.1716 33.5 29L33.5 33C33.5 33.8284 32.8284 34.5 32 34.5L8 34.5C7.60218 34.5 7.22064 34.342 6.93934 34.0607Z" fill="currentColor"/></svg>`,
-            'upload': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.93934 34.0607C6.65804 33.7794 6.5 33.3978 6.5 33L6.5 29C6.5 28.1716 7.17157 27.5 8 27.5C8.82843 27.5 9.5 28.1716 9.5 29L9.5 31.5L30.5 31.5L30.5 29C30.5 28.1716 31.1716 27.5 32 27.5C32.8284 27.5 33.5 28.1716 33.5 29L33.5 33C33.5 33.8284 32.8284 34.5 32 34.5L8 34.5C7.60218 34.5 7.22064 34.342 6.93934 34.0607Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M19.9999 27.5C19.1715 27.5 18.4999 26.8284 18.4999 26L18.4999 11.7016L13.0767 17.2942C12.5 17.8889 11.5504 17.9036 10.9557 17.3269C10.3609 16.7501 10.3463 15.8005 10.923 15.2058L18.923 6.95578C19.2055 6.66444 19.5941 6.5 19.9999 6.5C20.4057 6.5 20.7942 6.66444 21.0767 6.95578L29.0767 15.2058C29.6534 15.8005 29.6388 16.7501 29.0441 17.3268C28.4494 17.9036 27.4997 17.8889 26.923 17.2942L21.4999 11.7016L21.4999 26C21.4999 26.8284 20.8283 27.5 19.9999 27.5Z" fill="currentColor"/></svg>`
         };
         this.iconDefaultSize = 24;  // 기본 크기
         this.iconColors = [
@@ -115,7 +500,100 @@ class PrototypingTool {
         
         this.initializeEvents();
         this.saveHistory();
+
+        this.selectedConnection = null;
+        this.connectionManager = new ConnectionManager(this);
     }
+
+    // 연결선 찾기
+    findConnectionAtPoint(x, y) {
+        const canvas = document.getElementById('canvas');
+        const rect = canvas.getBoundingClientRect();
+        const clickX = x - rect.left;
+        const clickY = y - rect.top;
+
+        return this.connections.find(connection => {
+            const line = document.querySelector(`[data-connection-id="${connection.id}"] line`);
+            if (!line) return false;
+
+            const lineRect = line.getBoundingClientRect();
+            const threshold = 5; // 클릭 허용 범위
+
+            // 선과 클릭 지점 사이의 거리 계산
+            const x1 = parseFloat(line.getAttribute('x1'));
+            const y1 = parseFloat(line.getAttribute('y1'));
+            const x2 = parseFloat(line.getAttribute('x2'));
+            const y2 = parseFloat(line.getAttribute('y2'));
+
+            const distance = this.pointToLineDistance(
+                clickX, clickY,
+                x1, y1,
+                x2, y2
+            );
+
+            return distance < threshold;
+        });
+    }
+
+    // 점과 선 사이의 거리 계산
+    pointToLineDistance(x, y, x1, y1, x2, y2) {
+        const A = x - x1;
+        const B = y - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+
+        if (lenSq !== 0) {
+            param = dot / lenSq;
+        }
+
+        let xx, yy;
+
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+
+        const dx = x - xx;
+        const dy = y - yy;
+
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    // 연결선 선택
+    selectConnection(connection) {
+        // 이전 선택 해제
+        if (this.selectedConnection) {
+            const prevPath = document.querySelector(
+                `[data-connection-id="${this.selectedConnection.id}"] path`
+            );
+            if (prevPath) {
+                prevPath.classList.remove('selected');
+            }
+        }
+
+        this.selectedConnection = connection;
+        const path = document.querySelector(
+            `[data-connection-id="${connection.id}"] path`
+        );
+        if (path) {
+            path.classList.add('selected');
+        }
+
+        // ConnectionManager에 선택 이벤트 발송
+        const event = new CustomEvent('connection-selected', { detail: connection });
+        document.getElementById('properties').dispatchEvent(event);
+    }
+
     
     initializeCanvasSize() {
         const canvas = document.getElementById('canvas');
@@ -169,11 +647,28 @@ class PrototypingTool {
         }
     }
 
+    // 모든 연결선 업데이트
+    updateAllConnections() {
+        this.connections.forEach(connection => {
+            const svg = document.querySelector(`[data-connection-id="${connection.id}"]`);
+            if (svg) {
+                const line = svg.querySelector('line');
+                if (line) {
+                    this.updateConnectionPosition(connection, line);
+                }
+            }
+        });
+    }
+
+
     // transform 원점 유지
     updateCanvasTransform() {
         const canvas = document.getElementById('canvas');
         canvas.style.transform = `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`;
         canvas.style.transformOrigin = '0 0';
+        
+        // 캔버스 transform이 변경될 때마다 연결선 업데이트
+        this.updateAllConnections();
     }
 
     createPage(pageName) {
@@ -787,6 +1282,398 @@ class PrototypingTool {
 
         // 요소에 데이터 속성 추가
         container.dataset.tableId = element.id;
+
+        // 연결점 컨테이너 추가
+        const connectionPoints = document.createElement('div');
+        connectionPoints.className = 'connection-points';
+        
+        // 상하좌우 연결점 추가
+        ['top', 'right', 'bottom', 'left'].forEach(position => {
+            const point = document.createElement('div');
+            point.className = `connection-point ${position}`;
+            point.dataset.position = position;
+            point.dataset.tableId = element.id;
+            
+            // 연결점 드래그 시작
+            point.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                this.startConnection(e, element, position);
+            });
+
+            connectionPoints.appendChild(point);
+        });
+
+        container.appendChild(connectionPoints);
+    }
+
+    // 연결 시작
+    startConnection(e, sourceElement, position) {
+        this.connectionStart = {
+            element: sourceElement,
+            position: position,
+            point: e.target
+        };
+
+        // 임시 SVG 라인 생성
+        this.createTempLine(e);
+
+        // 마우스 이동 및 업 이벤트 리스너 추가
+        document.addEventListener('mousemove', this.handleConnectionDrag);
+        document.addEventListener('mouseup', this.handleConnectionEnd);
+    }
+
+    // 임시 연결선 생성
+    createTempLine(e) {
+        const canvas = document.getElementById('canvas');
+        
+        // SVG 요소 생성
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.style.position = 'absolute';
+        svg.style.top = '0';
+        svg.style.left = '0';
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+        svg.style.pointerEvents = 'none';
+        
+        // 라인 요소 생성
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('stroke', '#2196f3');
+        line.setAttribute('stroke-width', '2');
+        
+        // 시작점 위치 설정
+        const rect = this.connectionStart.point.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        
+        const x1 = rect.left + rect.width / 2 - canvasRect.left;
+        const y1 = rect.top + rect.height / 2 - canvasRect.top;
+        
+        line.setAttribute('x1', x1);
+        line.setAttribute('y1', y1);
+        line.setAttribute('x2', x1);
+        line.setAttribute('y2', y1);
+        
+        svg.appendChild(line);
+        canvas.appendChild(svg);
+        
+        this.tempLine = { svg, line };
+    }
+
+    // 연결선 드래그 처리
+    handleConnectionDrag = (e) => {
+        if (!this.tempLine) return;
+
+        const canvas = document.getElementById('canvas');
+        const canvasRect = canvas.getBoundingClientRect();
+        
+        // 마우스 위치로 선 끝점 업데이트
+        this.tempLine.line.setAttribute('x2', e.clientX - canvasRect.left);
+        this.tempLine.line.setAttribute('y2', e.clientY - canvasRect.top);
+    }
+
+    // 연결 종료 처리
+    handleConnectionEnd = (e) => {
+        // 이벤트 리스너 제거
+        document.removeEventListener('mousemove', this.handleConnectionDrag);
+        document.removeEventListener('mouseup', this.handleConnectionEnd);
+
+        // 타겟 요소 확인
+        const target = document.elementFromPoint(e.clientX, e.clientY);
+        if (target && target.classList.contains('connection-point')) {
+            const targetTableId = target.dataset.tableId;
+            const targetPosition = target.dataset.position;
+            
+            // 시작점과 다른 테이블인 경우에만 연결
+            if (targetTableId !== this.connectionStart.element.id) {
+                this.showRelationDialog(
+                    this.connectionStart.element.id,
+                    targetTableId,
+                    this.connectionStart.position,
+                    targetPosition
+                );
+            }
+        }
+
+        // 임시 연결선 제거
+        if (this.tempLine) {
+            this.tempLine.svg.remove();
+            this.tempLine = null;
+        }
+
+        this.connectionStart = null;
+    }
+
+    // 관계 선택 다이얼로그 표시
+    showRelationDialog(sourceId, targetId, sourcePosition, targetPosition) {
+        const dialog = document.createElement('div');
+        dialog.className = 'relation-dialog';
+        
+        dialog.innerHTML = `
+            <div class="dialog-content">
+                <h3>Select Relationship Type</h3>
+                <div class="relation-options">
+                    ${this.relationTypes.map(type => `
+                        <button class="relation-option" data-type="${type.name}">
+                            <span class="relation-name">${type.name}</span>
+                            <span class="relation-symbol">${type.symbol}</span>
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="dialog-buttons">
+                    <button class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+    
+        // 관계 유형 선택 시 바로 연결 생성
+        dialog.querySelectorAll('.relation-option').forEach(button => {
+            button.onclick = () => {
+                const relationType = button.dataset.type;
+                this.createConnection(
+                    sourceId,
+                    targetId,
+                    sourcePosition,
+                    targetPosition,
+                    relationType
+                );
+                document.body.removeChild(dialog);
+            };
+        });
+    
+        // 취소 버튼
+        dialog.querySelector('.cancel-btn').onclick = () => {
+            document.body.removeChild(dialog);
+        };
+    
+        document.body.appendChild(dialog);
+    }
+
+    // 실제 연결 생성
+    createConnection(sourceId, targetId, sourcePosition, targetPosition, relationType) {
+        const connection = {
+            id: Date.now(),
+            sourceId,
+            targetId,
+            sourcePosition,
+            targetPosition,
+            type: relationType
+        };
+
+        this.connections.push(connection);
+        this.renderConnection(connection);
+        this.saveHistory();
+    }
+
+    // 연결선 렌더링
+    renderConnection(connection) {
+        const canvas = document.getElementById('canvas');
+        const sourceElement = document.getElementById(`element-${connection.sourceId}`);
+        const targetElement = document.getElementById(`element-${connection.targetId}`);
+        
+        if (!sourceElement || !targetElement) return;
+    
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.style.position = 'absolute';
+        svg.style.top = '0';
+        svg.style.left = '0';
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+        svg.style.pointerEvents = 'none';  // SVG 자체는 이벤트를 가로채지 않음
+        
+        // 연결선 생성 (path 요소로 변경)
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('stroke', connection.color || '#2196f3');
+        path.setAttribute('stroke-width', connection.strokeWidth || 2);
+        path.setAttribute('fill', 'none');
+        path.style.pointerEvents = 'all';  // path는 이벤트를 받을 수 있도록 설정
+        
+        if (connection.lineStyle === 'dashed') {
+            path.setAttribute('stroke-dasharray', '5,5');
+        }
+        
+        // 위치 계산 및 설정
+        this.updateConnectionPosition(connection, path);
+        
+        svg.appendChild(path);
+    
+        // 관계 타입 레이블 생성
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.style.pointerEvents = 'all';  // 텍스트도 이벤트를 받을 수 있도록 설정
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('alignment-baseline', 'middle');
+        text.setAttribute('fill', '#2196f3');
+        text.setAttribute('font-size', '12');
+        
+        const relationSymbol = this.relationTypes.find(t => t.name === connection.type)?.symbol || '';
+        text.textContent = relationSymbol;
+        
+        svg.appendChild(text);
+        canvas.appendChild(svg);
+    
+        // SVG 요소에 connection ID 추가
+        svg.dataset.connectionId = connection.id;
+        path.dataset.connectionId = connection.id;
+        text.dataset.connectionId = connection.id;
+    
+        // 연결선 클릭 이벤트
+        const handleClick = (e) => {
+            e.stopPropagation();
+            this.connectionManager.selectConnection(connection);
+        };
+    
+        // 더블클릭 이벤트
+        const handleDblClick = (e) => {
+            e.stopPropagation();
+            this.connectionManager.showRelationEditDialog(connection);
+        };
+    
+        // path와 text 모두에 이벤트 리스너 추가
+        [path, text].forEach(element => {
+            element.addEventListener('click', handleClick);
+            element.addEventListener('dblclick', handleDblClick);
+        });
+    
+        // 연결선 위치 업데이트
+        this.updateConnectionPosition(connection, path);
+    }
+
+    // 연결선 위치 업데이트
+    updateConnectionPosition(connection, path) {
+        const sourcePoint = this.getConnectionPoint(connection.sourceId, connection.sourcePosition);
+        const targetPoint = this.getConnectionPoint(connection.targetId, connection.targetPosition);
+        
+        if (!sourcePoint || !targetPoint) return;
+
+        // 컨트롤 포인트가 있는 경우 곡선으로, 없는 경우 직선으로 처리
+        let pathData;
+        if (connection.controlPoint) {
+            pathData = `M ${sourcePoint.x} ${sourcePoint.y} Q ${connection.controlPoint.x} ${connection.controlPoint.y} ${targetPoint.x} ${targetPoint.y}`;
+        } else {
+            pathData = `M ${sourcePoint.x} ${sourcePoint.y} L ${targetPoint.x} ${targetPoint.y}`;
+        }
+        
+        path.setAttribute('d', pathData);
+
+        // 레이블 위치 업데이트
+        const labelElement = path.parentElement?.querySelector('text');
+        if (labelElement) {
+            // 레이블 위치를 경로의 중간점으로 계산
+            const midX = (sourcePoint.x + targetPoint.x) / 2;
+            const midY = (sourcePoint.y + targetPoint.y) / 2;
+            labelElement.setAttribute('x', midX);
+            labelElement.setAttribute('y', midY);
+        }
+    }
+
+    // 연결점 위치 계산
+    getConnectionPoint(elementId, position) {
+        const element = document.getElementById(`element-${elementId}`);
+        if (!element) return null;
+    
+        const rect = element.getBoundingClientRect();
+        const canvas = document.getElementById('canvas');
+        const canvasRect = canvas.getBoundingClientRect();
+    
+        // 캔버스의 현재 transform 상태를 고려한 좌표 계산
+        const x = (rect.left - canvasRect.left) / this.scale - this.canvasOffset.x / this.scale;
+        const y = (rect.top - canvasRect.top) / this.scale - this.canvasOffset.y / this.scale;
+        const width = rect.width / this.scale;
+        const height = rect.height / this.scale;
+    
+        // 각 위치에 따른 연결점 좌표 반환
+        switch (position) {
+            case 'top':
+                return {
+                    x: x + width / 2,
+                    y: y
+                };
+            case 'right':
+                return {
+                    x: x + width,
+                    y: y + height / 2
+                };
+            case 'bottom':
+                return {
+                    x: x + width / 2,
+                    y: y + height
+                };
+            case 'left':
+                return {
+                    x: x,
+                    y: y + height / 2
+                };
+        }
+    }
+
+    // 관계 타입 레이블 추가
+    addRelationshipLabel(connection, svg) {
+        const sourcePoint = this.getConnectionPoint(connection.sourceId, connection.sourcePosition);
+        const targetPoint = this.getConnectionPoint(connection.targetId, connection.targetPosition);
+        
+        if (!sourcePoint || !targetPoint) return;
+
+        // 레이블 위치 계산 (선의 중간 지점)
+        const x = (sourcePoint.x + targetPoint.x) / 2;
+        const y = (sourcePoint.y + targetPoint.y) / 2;
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x);
+        text.setAttribute('y', y);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('alignment-baseline', 'middle');
+        text.setAttribute('fill', '#2196f3');
+        text.setAttribute('font-size', '12');
+        text.textContent = this.relationTypes.find(t => t.name === connection.type)?.symbol || '';
+
+        svg.appendChild(text);
+    }
+
+    // 연결선 삭제 기능 추가
+    deleteConnection(connectionId) {
+        const connection = this.connections.find(c => c.id === connectionId);
+        if (connection) {
+            // SVG 요소 제거
+            document.querySelector(`[data-connection-id="${connectionId}"]`)?.remove();
+            // 배열에서 제거
+            this.connections = this.connections.filter(c => c.id !== connectionId);
+            this.saveHistory();
+        }
+    }
+
+    // 연결선 편집 기능
+    editConnection(connectionId) {
+        const connection = this.connections.find(c => c.id === connectionId);
+        if (connection) {
+            this.showRelationDialog(
+                connection.sourceId,
+                connection.targetId,
+                connection.sourcePosition,
+                connection.targetPosition,
+                true
+            );
+        }
+    }
+
+    // 연결선 스타일 설정
+    setConnectionStyle(connectionId, style) {
+        const connection = this.connections.find(c => c.id === connectionId);
+        if (connection) {
+            const line = document.querySelector(`[data-connection-id="${connectionId}"] line`);
+            if (line) {
+                Object.assign(line.style, style);
+            }
+            this.saveHistory();
+        }
+    }
+
+    // 연결선 자동 정렬
+    autoLayoutConnections() {
+        this.connections.forEach(connection => {
+            const sourcePoint = this.getConnectionPoint(connection.sourceId, connection.sourcePosition);
+            const targetPoint = this.getConnectionPoint(connection.targetId, connection.targetPosition);
+            if (sourcePoint && targetPoint) {
+                this.updateConnectionPosition(connection);
+            }
+        });
     }
 
     // 테이블 행 생성을 별도의 메서드로 분리
@@ -1116,7 +2003,10 @@ class PrototypingTool {
                     ${iconList}
                 </div>
                 <div class="dialog-buttons">
-                    <button class="cancel-btn">Cancel</button>
+                    <div class="dialog-buttons">
+                        <button class="apply-btn">적용</button> 
+                        <button class="cancel-btn">취소</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -2761,6 +3651,7 @@ class PrototypingTool {
                 id: pageId,
                 name: page.name,
                 elements: page.elements,
+                connections: this.connections, // 연결 정보 추가
                 device: page.device,
                 gridSize: page.gridSize
             })),
@@ -2789,6 +3680,13 @@ class PrototypingTool {
             reader.onload = (event) => {
                 try {
                     const data = JSON.parse(event.target.result);
+
+                    // connections 복원
+                    this.connections = data.pages[0].connections || [];
+                    // 연결선 다시 그리기
+                    this.connections.forEach(connection => {
+                        this.renderConnection(connection);
+                    });
                     
                     // 페이지 맵 재구성
                     this.pages = new Map(
@@ -3190,8 +4088,6 @@ class PrototypingTool {
         this.updateProperties();
         this.updateLayersList();
     }
-
-    
 }
 
 // 툴 초기화

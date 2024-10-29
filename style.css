@@ -1404,3 +1404,367 @@ h2 {
 .button-container {
     display: none;
 }
+
+/* 연결점 컨테이너 */
+.connection-points {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+/* 연결점 공통 스타일 */
+.connection-point {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: white;
+    border: 2px solid #2196f3;
+    border-radius: 50%;
+    pointer-events: auto;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+/* 테이블에 마우스 오버 시 연결점 표시 */
+.element.table:hover .connection-point {
+    opacity: 1;
+}
+
+/* 연결점 위치 */
+.connection-point.top {
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.connection-point.right {
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.connection-point.bottom {
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.connection-point.left {
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* 연결점 호버 효과 */
+.connection-point:hover {
+    transform: scale(1.2);
+}
+
+.connection-point.top:hover {
+    transform: translateX(-50%) scale(1.2);
+}
+
+.connection-point.bottom:hover {
+    transform: translateX(-50%) scale(1.2);
+}
+
+.connection-point.left:hover,
+.connection-point.right:hover {
+    transform: translateY(-50%) scale(1.2);
+}
+
+/* 관계 선택 다이얼로그 */
+.relation-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.relation-dialog .dialog-content {
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    min-width: 300px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.relation-dialog .relation-options {
+    margin: 16px 0;
+}
+
+.relation-dialog .relation-option {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.relation-dialog .relation-option.active {
+    background: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.relation-dialog .relation-name {
+    font-size: 14px;
+    color: #333;
+}
+
+.relation-dialog .relation-symbol {
+    font-weight: bold;
+    color: #2196f3;
+}
+
+.relation-dialog .additional-options {
+    margin: 16px 0;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+}
+
+.relation-dialog .dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+.relation-dialog button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.relation-dialog .apply-btn {
+    background: #2196f3;
+    color: white;
+    border: none;
+}
+
+.relation-dialog .cancel-btn {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    color: #333;
+}
+
+.relation-dialog button:hover {
+    opacity: 0.9;
+}
+
+.relation-dialog-content {
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    min-width: 300px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.relation-options {
+    display: grid;
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.relation-option {
+    padding: 12px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.relation-option:hover {
+    background: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.relation-name {
+    font-size: 14px;
+    color: #333;
+}
+
+.relation-symbol {
+    font-weight: bold;
+    color: #2196f3;
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.dialog-buttons button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.dialog-buttons .cancel-btn {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    color: #333;
+}
+
+.dialog-buttons .cancel-btn:hover {
+    background: #e0e0e0;
+}
+
+/* 연결선 스타일 */
+.connection-line {
+    pointer-events: none;
+}
+
+.connection-line path {
+    cursor: pointer;
+    transition: stroke-width 0.2s;
+}
+
+.connection-line path.selected {
+    stroke-width: 3px;
+}
+
+/* 조절점 스타일 추가 */
+.control-point {
+    cursor: move;
+    fill: #2196f3;
+    stroke: white;
+    stroke-width: 2;
+}
+
+.control-point:hover {
+    fill: #1976d2;
+}
+
+/* 연결선 컨텍스트 메뉴 스타일 수정 */
+.connection-context-menu {
+    position: fixed;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+    padding: 4px 0;
+}
+
+.connection-context-menu .menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+}
+
+.connection-context-menu .menu-item:hover {
+    background: #f5f5f5;
+}
+
+.connection-label {
+    font-size: 12px;
+    fill: #2196f3;
+    user-select: none;
+}
+
+/* 활성 연결점 스타일 */
+.connection-point.active {
+    background: #2196f3;
+    transform: scale(1.2);
+}
+
+/* 연결 가능한 상태의 연결점 스타일 */
+.connection-point.connectable {
+    background: #4caf50;
+    border-color: #4caf50;
+    opacity: 1;
+}
+
+/* 테이블 선택 상태에서의 연결점 */
+.element.table.selected .connection-point {
+    opacity: 1;
+}
+
+.relation-edit-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.relation-edit-dialog .dialog-content {
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    min-width: 300px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.relation-edit-dialog .relation-option {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+}
+
+.relation-edit-dialog .relation-option.active {
+    background: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.relation-edit-dialog .additional-options {
+    margin: 16px 0;
+}
+
+.relation-dialog .relation-option {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.relation-dialog .relation-option:hover {
+    background: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.relation-dialog .relation-name {
+    font-size: 14px;
+    color: #333;
+}
+
+.relation-dialog .relation-symbol {
+    font-weight: bold;
+    color: #2196f3;
+}
