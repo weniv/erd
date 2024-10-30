@@ -440,26 +440,6 @@ class PrototypingTool {
             { name: 'Many-to-Many', symbol: 'N:M' }
         ];
 
-        // 아이콘
-        this.icons = {
-            'arrow-right': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M26.0607 6.93934C26.6464 7.52513 26.6464 8.47487 26.0607 9.06066L15.1213 20L26.0607 30.9393C26.6464 31.5251 26.6464 32.4749 26.0607 33.0607C25.4749 33.6464 24.5251 33.6464 23.9393 33.0607L11.9393 21.0607C11.3536 20.4749 11.3536 19.5251 11.9393 18.9393L23.9393 6.93934C24.5251 6.35355 25.4749 6.35355 26.0607 6.93934Z" fill="currentColor"/></svg>`,
-            'arrow-left': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.9393 33.0607C13.3536 32.4749 13.3536 31.5251 13.9393 30.9393L24.8787 20L13.9393 9.06066C13.3536 8.47488 13.3536 7.52513 13.9393 6.93934C14.5251 6.35355 15.4749 6.35355 16.0607 6.93934L28.0607 18.9393C28.6464 19.5251 28.6464 20.4749 28.0607 21.0607L16.0607 33.0607C15.4749 33.6464 14.5251 33.6464 13.9393 33.0607Z" fill="currentColor"/></svg>`,
-            'arrow-back': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M33.5 20C33.5 20.8284 32.8284 21.5 32 21.5H11.8799L20.009 28.8901C20.622 29.4474 20.6672 30.396 20.1099 31.009C19.5526 31.622 18.604 31.6672 17.991 31.1099L6.99099 21.1099C6.67828 20.8256 6.5 20.4226 6.5 20C6.5 19.5774 6.67828 19.1744 6.99099 18.8901L17.991 8.8901C18.604 8.33284 19.5526 8.37801 20.1099 8.991C20.6672 9.60399 20.622 10.5527 20.009 11.1099L11.8799 18.5H32C32.8284 18.5 33.5 19.1716 33.5 20Z" fill="currentColor"/></svg>`,
-            'arrow-forward': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.5 20C6.5 19.1716 7.17157 18.5 8 18.5H28.1201L19.991 11.1099C19.378 10.5527 19.3328 9.604 19.8901 8.99101C20.4473 8.37802 21.396 8.33285 22.009 8.89011L33.009 18.8901C33.3217 19.1744 33.5 19.5774 33.5 20C33.5 20.4226 33.3217 20.8256 33.009 21.1099L22.009 31.1099C21.396 31.6672 20.4474 31.622 19.8901 31.009C19.3328 30.396 19.378 29.4474 19.991 28.8901L28.1201 21.5H8C7.17157 21.5 6.5 20.8284 6.5 20Z" fill="currentColor"/></svg>`,
-            'arrow-up': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6.5C20.4411 6.5 20.8377 6.69041 21.1122 6.99351L31.1099 17.991C31.6672 18.604 31.622 19.5526 31.009 20.1099C30.396 20.6672 29.4474 20.622 28.8901 20.009L21.5 11.8799V32C21.5 32.8284 20.8284 33.5 20 33.5C19.1716 33.5 18.5 32.8284 18.5 32V11.8799L11.1099 20.009C10.5527 20.622 9.60399 20.6672 8.991 20.1099C8.37802 19.5526 8.33284 18.604 8.8901 17.991L18.8848 6.99684C19.1594 6.6918 19.5573 6.5 20 6.5Z" fill="currentColor"/></svg>`,
-            'arrow-down': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M20 6.5C20.8284 6.5 21.5 7.17157 21.5 8V28.1201L28.8901 19.991C29.4474 19.378 30.396 19.3328 31.009 19.8901C31.622 20.4473 31.6672 21.396 31.1099 22.009L21.1099 33.009C20.8256 33.3217 20.4226 33.5 20 33.5C19.5774 33.5 19.1744 33.3217 18.8901 33.009L8.8901 22.009C8.33284 21.396 8.37801 20.4474 8.991 19.8901C9.60399 19.3328 10.5527 19.378 11.1099 19.991L18.5 28.1201V8C18.5 7.17157 19.1716 6.5 20 6.5Z" fill="currentColor"/></svg>`,
-            'heart-outline': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M27.578 9.5C25.7586 9.5 22.9997 10.3073 21.3207 13.4249C21.059 13.9107 20.5518 14.2136 20 14.2136C19.4482 14.2136 18.941 13.9107 18.6793 13.4249C17.0005 10.3075 14.2415 9.50077 12.4218 9.50077C10.553 9.50077 8.78036 10.1933 7.48911 11.3962C6.2916 12.5117 5.5 14.5312 5.5 16.7746C5.5 20.6316 8.08172 27.3616 20 32.3769C31.9186 27.3615 34.5 20.6313 34.5 16.7741C34.5 14.5306 33.7084 12.511 32.5108 11.3955C31.2195 10.1925 29.4468 9.5 27.578 9.5ZM20 10.0515C22.3098 7.31893 25.384 6.5 27.578 6.5C30.1765 6.5 32.6881 7.46061 34.5557 9.20033C36.517 11.0274 37.5 13.9359 37.5 16.7741C37.5 22.2364 33.7639 30.0276 20.5646 35.3897C20.2026 35.5368 19.7975 35.5368 19.4354 35.3897C6.23646 30.0278 2.5 22.2368 2.5 16.7746C2.5 13.9365 3.48299 11.028 5.44425 9.20103C7.31178 7.46135 9.82332 6.50077 12.4218 6.50077C14.6155 6.50077 17.69 7.31901 20 10.0515Z" fill="currentColor"/></svg>`,
-            'heart-fill': `<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M27.578 6.5C25.384 6.5 22.3098 7.31893 20 10.0515C17.69 7.31901 14.6155 6.50077 12.4218 6.50077C9.82332 6.50077 7.31178 7.46135 5.44425 9.20103C3.48299 11.028 2.5 13.9365 2.5 16.7746C2.5 22.2368 6.23646 30.0278 19.4354 35.3897C19.7975 35.5368 20.2026 35.5368 20.5646 35.3897C33.7639 30.0276 37.5 22.2364 37.5 16.7741C37.5 13.9359 36.517 11.0274 34.5557 9.20033C32.6881 7.46061 30.1765 6.5 27.578 6.5Z" fill="currentColor"/></svg>`,
-        };
-        this.iconDefaultSize = 24;  // 기본 크기
-        this.iconColors = [
-            '#000000', // 검정
-            '#FF0000', // 빨강
-            '#00FF00', // 초록
-            '#0000FF', // 파랑
-            '#FFA500'  // 주황
-        ];
-
         this.stickyColors = [
             '#fff740', // 노랑
             '#ff7eb9', // 핑크
@@ -1079,10 +1059,6 @@ class PrototypingTool {
             this.showImageDialog();
             return;
         }
-        if (type === 'icon') {
-            this.showIconDialog();
-            return;
-        }
         if (type === 'table') {
             this.addTableElement();
             return;
@@ -1092,20 +1068,13 @@ class PrototypingTool {
             type,
             x: 100,
             y: 100,
-            width: type === 'icon' ? this.iconDefaultSize :
-                (type === 'link' ? 150 :
-                (type === 'box' ? 200 : 
-                (type === 'sticky' ? 200 : 120))),
-            height: type === 'icon' ? this.iconDefaultSize :
-                    (type === 'link' ? 60 :
-                    (type === 'box' ? 200 : 
-                    (type === 'sticky' ? 200 : 40))),
+            width: 200,
+            height: 200,
             name: this.generateElementName(type),
             content: type === 'icon' ? Object.keys(this.icons)[0] : // 첫 번째 아이콘을 기본값으로
                 (type === 'link' ? '🔗 Click to set target page' :
                 (type === 'sticky' ? 'Double click to edit memo' : 
                 (type === 'panel' ? '' : type.charAt(0).toUpperCase() + type.slice(1)))),
-            iconColor: type === 'icon' ? this.iconColors[0] : undefined,
             zIndex: this.maxZIndex,
             opacity: type === 'sticky' ? 1 : undefined,
             fontSize: type === 'text' ? 16 : undefined,
@@ -1983,66 +1952,6 @@ class PrototypingTool {
     }
 
 
-    showIconDialog() {
-        const dialog = document.createElement('div');
-        dialog.className = 'icon-dialog';
-        
-        const iconList = Object.entries(this.icons).map(([key, svg]) => `
-            <div class="icon-item" data-icon="${key}">
-                <div class="icon-preview">
-                    ${svg}
-                </div>
-                <div class="icon-name">${key}</div>
-            </div>
-        `).join('');
-        
-        dialog.innerHTML = `
-            <div class="icon-dialog-content">
-                <h3>Select Icon</h3>
-                <div class="icon-grid">
-                    ${iconList}
-                </div>
-                <div class="dialog-buttons">
-                    <div class="dialog-buttons">
-                        <button class="apply-btn">적용</button> 
-                        <button class="cancel-btn">취소</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(dialog);
-        
-        // 아이콘 선택 이벤트
-        dialog.querySelectorAll('.icon-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const iconKey = item.dataset.icon;
-                const element = {
-                    id: Date.now(),
-                    type: 'icon',
-                    x: 100,
-                    y: 100,
-                    width: this.iconDefaultSize,
-                    height: this.iconDefaultSize,
-                    name: this.generateElementName('icon'),
-                    content: iconKey,
-                    iconColor: this.iconColors[0],
-                    zIndex: this.maxZIndex
-                };
-                
-                this.elements.push(element);
-                this.renderElement(element);
-                this.selectElement(element);
-                this.saveHistory();
-                document.body.removeChild(dialog);
-            });
-        });
-        
-        dialog.querySelector('.cancel-btn').addEventListener('click', () => {
-            document.body.removeChild(dialog);
-        });
-    }
-
     handleImageUpload(file) {
         return new Promise((resolve, reject) => {
             // 파일 타입 체크
@@ -2123,8 +2032,6 @@ class PrototypingTool {
                 return `Note ${count}`;
             case 'image':
                 return `Image ${count}`;
-            case 'icon':
-                return `Icon ${count}`;
             default:
                 return `Element ${count}`;
         }
@@ -2260,25 +2167,6 @@ class PrototypingTool {
                 div.style.background = 'none';
                 
                 return innerContainer;
-            },
-
-            icon: () => {
-                const iconSvg = this.icons[element.content];
-                if (!iconSvg) return null;
-                
-                const wrapper = document.createElement('div');
-                wrapper.className = 'icon-wrapper';
-                wrapper.innerHTML = iconSvg;
-                
-                // SVG 스타일 적용
-                const svg = wrapper.querySelector('svg');
-                if (svg) {
-                    svg.style.width = '100%';
-                    svg.style.height = '100%';
-                    svg.style.color = element.iconColor || this.iconColors[0];
-                }
-                
-                return wrapper;
             },
             
             sticky: () => {
@@ -2829,44 +2717,6 @@ class PrototypingTool {
                 `
             }),
 
-            icon: (element) => ({
-                title: 'Icon Style',
-                html: `
-                    <div class="icon-controls">
-                        <div class="control-group">
-                            <label>Icon</label>
-                            <select onchange="tool.updateIconProperty('content', this.value)">
-                                ${Object.keys(this.icons).map(key => `
-                                    <option value="${key}" ${element.content === key ? 'selected' : ''}>
-                                        ${key}
-                                    </option>
-                                `).join('')}
-                            </select>
-                        </div>
-                        <div class="icon-colors">
-                            ${this.iconColors.map(color => `
-                                <button 
-                                    class="color-button ${element.iconColor === color ? 'active' : ''}"
-                                    style="background-color: ${color}"
-                                    onclick="tool.updateIconProperty('iconColor', '${color}')"
-                                ></button>
-                            `).join('')}
-                        </div>
-                        <div class="control-group">
-                            <label>Size</label>
-                            <input 
-                                type="range" 
-                                min="12" 
-                                max="128" 
-                                value="${element.width}"
-                                onchange="tool.updateIconSize(this.value)"
-                            >
-                            <span>${element.width}px</span>
-                        </div>
-                    </div>
-                `
-            }),
-
             table: (element) => ({
                 title: 'Table Style',
                 html: `
@@ -3156,58 +3006,7 @@ class PrototypingTool {
         this.updateProperties();
     }
 
-    // PrototypingTool 클래스에 추가
-    updateIconProperty(property, value) {
-        if (!this.selectedElement || this.selectedElement.type !== 'icon') return;
-        
-        this.selectedElement[property] = value;
-        const elementDiv = document.getElementById(`element-${this.selectedElement.id}`);
-        
-        switch(property) {
-            case 'content':
-                // 아이콘 변경
-                const iconSvg = this.icons[value];
-                if (iconSvg) {
-                    const wrapper = elementDiv.querySelector('.icon-wrapper');
-                    wrapper.innerHTML = iconSvg;
-                    const svg = wrapper.querySelector('svg');
-                    if (svg) {
-                        svg.style.width = '100%';
-                        svg.style.height = '100%';
-                        svg.style.color = this.selectedElement.iconColor || this.iconColors[0];
-                    }
-                }
-                break;
-                
-            case 'iconColor':
-                // 색상 변경
-                const svg = elementDiv.querySelector('svg');
-                if (svg) {
-                    svg.style.color = value;
-                }
-                break;
-        }
-        
-        this.saveHistory();
-        this.updateProperties();
-    }
 
-    // 아이콘 크기 조절을 위한 메서드도 추가
-    updateIconSize(size) {
-        if (!this.selectedElement || this.selectedElement.type !== 'icon') return;
-        
-        const newSize = parseInt(size);
-        this.selectedElement.width = newSize;
-        this.selectedElement.height = newSize;
-        
-        const elementDiv = document.getElementById(`element-${this.selectedElement.id}`);
-        elementDiv.style.width = `${newSize}px`;
-        elementDiv.style.height = `${newSize}px`;
-        
-        this.saveHistory();
-        this.updateProperties();
-    }
-    
     // 헬퍼 메서드들
     createPropertyGroup(title, content) {
         return `
@@ -3246,22 +3045,6 @@ class PrototypingTool {
             `).join('');
     }
     
-    createAlignButton(align, element) {
-        const icons = {
-            start: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 15.75 3 12m0 0 3.75-3.75M3 12h18" /></svg>',
-            center: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>',
-            end: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25 21 12m0 0-3.75 3.75M21 12H3" /></svg>'
-        };
-        
-        return `
-            <button 
-                class="style-button ${element.textAlign === align ? 'active' : ''}"
-                onclick="tool.updateTextAlign('${align}')"
-                title="Align ${align}">
-                ${icons[align]}
-            </button>
-        `;
-    }
     
     createStickyControls(element) {
         return `
