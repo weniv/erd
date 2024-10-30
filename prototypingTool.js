@@ -628,9 +628,6 @@ class PrototypingTool {
         this.snapThreshold = 9; // 스냅이 작동할 거리 (픽셀)
         this.snapEnabled = true; // 스냅 기능 활성화 여부
     
-        this.loremText = "Lorem ipsum dolor sit amet..."; // 생략
-        this.loremVariants = { /* ... */ }; // 생략
-    
         // 첫 페이지 생성
         this.createPage('Home');
         
@@ -1213,7 +1210,22 @@ class PrototypingTool {
     }
 
     addElement(type) {
-        this.maxZIndex++;
+        // BOX 타입일 경우 맨 아래에 생성되도록 zIndex 조정
+        let zIndex = this.maxZIndex;
+        if (type === 'box') {
+            // 모든 요소의 zIndex를 1씩 증가
+            this.elements.forEach(element => {
+                element.zIndex++;
+                const elementDiv = document.getElementById(`element-${element.id}`);
+                if (elementDiv) {
+                    elementDiv.style.zIndex = element.zIndex;
+                }
+            });
+            zIndex = 1; // box는 항상 맨 아래(1)로 설정
+        } else {
+            this.maxZIndex++;
+        }
+
         if (type === 'image') {
             this.showImageDialog();
             return;
@@ -1231,11 +1243,9 @@ class PrototypingTool {
             height: 200,
             name: this.generateElementName(type),
             content: type === 'icon' ? Object.keys(this.icons)[0] : // 첫 번째 아이콘을 기본값으로
-                (type === 'link' ? '🔗 Click to set target page' :
-                (type === 'sticky' ? 'Double click to edit memo' : 
-                (type === 'panel' ? '' : type.charAt(0).toUpperCase() + type.slice(1)))),
+            type === 'sticky' ? 'Double click to edit memo' : type.charAt(0).toUpperCase() + type.slice(1),
             zIndex: this.maxZIndex,
-            opacity: type === 'sticky' ? 1 : undefined,
+            opacity: type === 'box' ? 0.5 : undefined,
             fontSize: type === 'text' ? 16 : undefined,
             // 패널의 기본 색상 설정
             backgroundColor: type === 'box' ? '#ffffff' : 
@@ -2324,7 +2334,6 @@ class PrototypingTool {
             },
             
             box: () => {
-                // 바깥쪽 div는 그대로 두고 내부에 새로운 컨테이너 추가
                 const innerContainer = document.createElement('div');
                 innerContainer.style.width = '100%';
                 innerContainer.style.height = '100%';
@@ -2335,20 +2344,6 @@ class PrototypingTool {
                 innerContainer.style.position = 'absolute';
                 innerContainer.style.top = '0';
                 innerContainer.style.left = '0';
-                
-                const placeholder = document.createElement('div');
-                placeholder.className = `box-placeholder ${element.showX ? '' : 'hide-x'}`;
-                placeholder.style.width = '100%';
-                placeholder.style.height = '100%';
-                placeholder.style.position = 'relative';
-                placeholder.innerHTML = `
-                    <svg width="100%" height="100%" style="position: absolute; top: 0; left: 0;">
-                        <line x1="0" y1="0" x2="100%" y2="100%" stroke="#ddd" stroke-width="1"/>
-                        <line x1="100%" y1="0" x2="0" y2="100%" stroke="#ddd" stroke-width="1"/>
-                    </svg>
-                `;
-                
-                innerContainer.appendChild(placeholder);
                 
                 // 원래 div의 테두리와 배경색 제거
                 div.style.border = 'none';
@@ -2476,22 +2471,6 @@ class PrototypingTool {
             } else if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 editableDiv.blur();
-            }
-        });
-
-        // lorem 감지 및 변환을 위한 입력 이벤트
-        editableDiv.addEventListener('input', (e) => {
-            const text = e.target.textContent.trim().toLowerCase();
-            
-            // lorem 변형들 감지
-            if (text === 'lorem') {
-                e.target.textContent = this.loremVariants.medium;
-            } else if (text === '1lorem' || text === '.lorem') {
-                e.target.textContent = this.loremVariants.short;
-            } else if (text === '2lorem' || text === '..lorem') {
-                e.target.textContent = this.loremVariants.medium;
-            } else if (text === '3lorem' || text === '...lorem') {
-                e.target.textContent = this.loremVariants.long;
             }
         });
 
@@ -2860,13 +2839,17 @@ class PrototypingTool {
                                 class="radius-slider">
                             <span>${element.radius || 0}px</span>
                         </div>
-                        <div class="checkbox-control">
-                            <label>
-                                <input type="checkbox" 
-                                    ${element.showX ? 'checked' : ''}
-                                    onchange="tool.updateBoxStyle('showX', this.checked)">
-                                Show X Mark
-                            </label>
+                        <div class="control-group">
+                            <label>Opacity</label>
+                            <input 
+                                type="range" 
+                                min="0" 
+                                max="1" 
+                                step="0.1" 
+                                value="${element.opacity || 1}"
+                                onchange="tool.updateBoxStyle('opacity', this.value)"
+                                class="opacity-slider">
+                            <span>${Math.round((element.opacity || 1) * 100)}%</span>
                         </div>
                     </div>
                 `,
@@ -3039,6 +3022,23 @@ class PrototypingTool {
             textarea.style.height = 'auto';
             textarea.style.height = `${textarea.scrollHeight}px`;
         }
+    }
+
+    createAlignButton(align, element) {
+        const icons = {
+            start: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 15.75 3 12m0 0 3.75-3.75M3 12h18" /></svg>',
+            center: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>',
+            end: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25 21 12m0 0-3.75 3.75M21 12H3" /></svg>'
+        };
+        
+        return `
+            <button 
+                class="style-button ${element.textAlign === align ? 'active' : ''}"
+                onclick="tool.updateTextAlign('${align}')"
+                title="Align ${align}">
+                ${icons[align]}
+            </button>
+        `;
     }
 
     // 테이블 구조 업데이트 메서드
@@ -3316,11 +3316,13 @@ class PrototypingTool {
     updateBoxStyle(property, value) {
         if (!this.selectedElement || this.selectedElement.type !== 'box') return;
         
-        const processedValue = property === 'radius' ? parseInt(value) : value;
+        const processedValue = property === 'radius' ? parseInt(value) : 
+                              property === 'opacity' ? parseFloat(value) : 
+                              value;
         this.selectedElement[property] = processedValue;
         
         const elementDiv = document.getElementById(`element-${this.selectedElement.id}`);
-        const innerContainer = elementDiv.children[0];  // 내부 컨테이너 참조
+        const innerContainer = elementDiv.children[0];
         
         switch (property) {
             case 'backgroundColor':
@@ -3329,19 +3331,14 @@ class PrototypingTool {
                 
             case 'borderColor':
                 innerContainer.style.borderColor = value;
-                const lines = elementDiv.querySelectorAll('line');
-                lines.forEach(line => line.setAttribute('stroke', value));
                 break;
                 
-            case 'showX':
-                const placeholder = elementDiv.querySelector('.box-placeholder');
-                if (placeholder) {
-                    placeholder.classList.toggle('hide-x', !value);
-                }
-                break;
-    
             case 'radius':
                 innerContainer.style.borderRadius = `${processedValue}px`;
+                break;
+    
+            case 'opacity':
+                innerContainer.style.opacity = processedValue;
                 break;
         }
         
@@ -3815,134 +3812,6 @@ class PrototypingTool {
                         </div>
                     </div>
                 </div>
-    
-                <div class="shortcut-section">
-                    <h3>General</h3>
-                    <div class="shortcut-list">
-                        <div class="shortcut-item">
-                            <span>Copy</span>
-                            <div class="shortcut-keys">
-                                <span class="key">Ctrl</span>
-                                <span class="key">C</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span>Paste</span>
-                            <div class="shortcut-keys">
-                                <span class="key">Ctrl</span>
-                                <span class="key">V</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span>Undo</span>
-                            <div class="shortcut-keys">
-                                <span class="key">Ctrl</span>
-                                <span class="key">Z</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span>Redo</span>
-                            <div class="shortcut-keys">
-                                <span class="key">Ctrl</span>
-                                <span class="key">Y</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span>Delete Selected</span>
-                            <div class="shortcut-keys">
-                                <span class="key">Del</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span>Finish Editing Text</span>
-                            <div class="shortcut-keys">
-                                <span class="key">Enter</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-    
-                <div class="shortcut-section">
-                    <h3>Text Editing</h3>
-                    <div class="shortcut-list">
-                        <div class="shortcut-item">
-                            <span>Bold Text</span>
-                            <div class="shortcut-keys">
-                                <span class="key">Ctrl</span>
-                                <span class="key">B</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span>Multi-line Text</span>
-                            <div class="shortcut-keys">
-                                <span class="key">Shift</span>
-                                <span class="key">Enter</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-    
-                <div class="shortcut-section">
-                    <h3>Moving & Resizing</h3>
-                    <div class="shortcut-list">
-                        <div class="shortcut-item">
-                            <span>Move 1px</span>
-                            <div class="shortcut-keys">
-                                <span class="key">↑</span>
-                                <span class="key">↓</span>
-                                <span class="key">←</span>
-                                <span class="key">→</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span>Move 10px</span>
-                            <div class="shortcut-keys">
-                                <span class="key">Shift</span>
-                                <span class="key">+</span>
-                                <span class="key">↑</span>
-                                <span class="key">↓</span>
-                                <span class="key">←</span>
-                                <span class="key">→</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span>Free Resize Image <small>(Release aspect ratio)</small></span>
-                            <div class="shortcut-keys">
-                                <span class="key">Shift</span>
-                                <span class="key">+ Drag</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-    
-                <div class="shortcut-section">
-                    <h3>Quick Text</h3>
-                    <div class="shortcut-list">
-                        <div class="shortcut-item">
-                            <span>Medium Lorem Ipsum</span>
-                            <div class="shortcut-keys">
-                                <span class="key">lorem</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span>Short/Medium/Long Lorem</span>
-                            <div class="shortcut-keys">
-                                <span class="key">1lorem</span>
-                                <span class="key">2lorem</span>
-                                <span class="key">3lorem</span>
-                            </div>
-                        </div>
-                        <div class="shortcut-item">
-                            <span>Alternative Short/Medium/Long</span>
-                            <div class="shortcut-keys">
-                                <span class="key">.lorem</span>
-                                <span class="key">..lorem</span>
-                                <span class="key">...lorem</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-    
             </div>
         `;
     
