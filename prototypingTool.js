@@ -1854,7 +1854,7 @@ class PrototypingTool {
         // 삭제 버튼
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'column-delete-btn';
-        deleteBtn.innerHTML = '×';
+        deleteBtn.innerHTML = 'x';
         deleteBtn.title = 'Delete Column';
         
         // 삭제 버튼 이벤트 핸들러
