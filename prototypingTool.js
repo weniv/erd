@@ -1,4 +1,163 @@
 // 연결선 관리 및 편집 기능 강화
+
+class OrthogonalConnectionManager {
+    constructor(tool) {
+        this.tool = tool;
+        this.padding = 20; // 선과 테이블 사이의 여백
+    }
+
+    // 직각 연결선의 경로 계산
+    calculateOrthogonalPath(start, end) {
+        const path = [];
+        path.push([start.x, start.y]); // 시작점
+
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const midX = start.x + dx / 2;
+        const midY = start.y + dy / 2;
+
+        // 연결 방향에 따른 경로 계산
+        switch (start.position + '-' + end.position) {
+            case 'right-left':
+            case 'left-right':
+                path.push([midX, start.y]);
+                path.push([midX, end.y]);
+                break;
+            case 'bottom-top':
+            case 'top-bottom':
+                path.push([start.x, midY]);
+                path.push([end.x, midY]);
+                break;
+            case 'top-left':
+            case 'top-right':
+                path.push([start.x, start.y - this.padding]);
+                path.push([end.x, start.y - this.padding]);
+                break;
+            case 'bottom-left':
+            case 'bottom-right':
+                path.push([start.x, start.y + this.padding]);
+                path.push([end.x, start.y + this.padding]);
+                break;
+            case 'left-top':
+            case 'right-top':
+                path.push([start.x - this.padding, start.y]);
+                path.push([start.x - this.padding, end.y]);
+                break;
+            case 'left-bottom':
+            case 'right-bottom':
+                path.push([start.x + this.padding, start.y]);
+                path.push([start.x + this.padding, end.y]);
+                break;
+            default:
+                path.push([midX, start.y]);
+                path.push([midX, end.y]);
+        }
+
+        path.push([end.x, end.y]); // 끝점
+        return path;
+    }
+
+    // SVG 경로 문자열 생성
+    createSvgPath(points) {
+        let d = `M ${points[0][0]} ${points[0][1]}`; // 시작점
+        
+        // 각 점을 순회하며 곡선 처리
+        for (let i = 1; i < points.length - 1; i++) {
+            const current = points[i];
+            const next = points[i + 1];
+            
+            // 직선 구간
+            d += ` L ${current[0]} ${current[1]}`;
+            
+            // 코너에 radius 추가
+            if (i < points.length - 2) {
+                const radius = 10; // radius 크기
+                const dx = next[0] - current[0];
+                const dy = next[1] - current[1];
+                
+                if (dx !== 0 && dy !== 0) {
+                    // radius를 위한 제어점 계산
+                    if (Math.abs(dx) > radius * 2 && Math.abs(dy) > radius * 2) {
+                        d += ` Q ${current[0]} ${current[1]}, ${current[0] + Math.sign(dx) * radius} ${current[1]}`;
+                        d += ` L ${next[0] - Math.sign(dx) * radius} ${current[1]}`;
+                        d += ` Q ${next[0]} ${current[1]}, ${next[0]} ${current[1] + Math.sign(dy) * radius}`;
+                    }
+                }
+            }
+        }
+        
+        // 마지막 점
+        d += ` L ${points[points.length - 1][0]} ${points[points.length - 1][1]}`;
+        return d;
+    }
+
+    // 연결선 업데이트
+    updateConnection(connection) {
+        const sourceElement = document.getElementById(`element-${connection.sourceId}`);
+        const targetElement = document.getElementById(`element-${connection.targetId}`);
+        
+        if (!sourceElement || !targetElement) return;
+
+        const start = this.getConnectionPoint(connection.sourceId, connection.sourcePosition);
+        const end = this.getConnectionPoint(connection.targetId, connection.targetPosition);
+        
+        if (!start || !end) return;
+
+        const points = this.calculateOrthogonalPath(start, end);
+        const pathD = this.createSvgPath(points);
+
+        const svg = document.querySelector(`[data-connection-id="${connection.id}"]`);
+        if (svg) {
+            const path = svg.querySelector('path');
+            if (path) {
+                path.setAttribute('d', pathD);
+            }
+
+            // 레이블 위치 업데이트
+            const text = svg.querySelector('text');
+            if (text) {
+                const midPoint = this.getMidPoint(points);
+                text.setAttribute('x', midPoint.x);
+                text.setAttribute('y', midPoint.y);
+            }
+        }
+    }
+
+    // 중간점 계산
+    getMidPoint(points) {
+        const midIndex = Math.floor(points.length / 2);
+        return {
+            x: points[midIndex][0],
+            y: points[midIndex][1]
+        };
+    }
+
+    // 연결점 위치 계산 (기존 메서드 개선)
+    getConnectionPoint(elementId, position) {
+        const element = document.getElementById(`element-${elementId}`);
+        if (!element) return null;
+
+        const rect = element.getBoundingClientRect();
+        const canvas = document.getElementById('canvas');
+        const canvasRect = canvas.getBoundingClientRect();
+
+        // 캔버스의 transform 상태를 고려한 좌표 계산
+        const x = (rect.left - canvasRect.left) / this.tool.scale - this.tool.canvasOffset.x / this.tool.scale;
+        const y = (rect.top - canvasRect.top) / this.tool.scale - this.tool.canvasOffset.y / this.tool.scale;
+        const width = rect.width / this.tool.scale;
+        const height = rect.height / this.tool.scale;
+
+        const positions = {
+            top: { x: x + width / 2, y: y, position: 'top' },
+            right: { x: x + width, y: y + height / 2, position: 'right' },
+            bottom: { x: x + width / 2, y: y + height, position: 'bottom' },
+            left: { x: x, y: y + height / 2, position: 'left' }
+        };
+
+        return positions[position];
+    }
+}
+
 class ConnectionManager {
     constructor(tool) {
         this.tool = tool;
@@ -482,7 +641,7 @@ class PrototypingTool {
         this.saveHistory();
 
         this.selectedConnection = null;
-        this.connectionManager = new ConnectionManager(this);
+        this.connectionManager = new OrthogonalConnectionManager(this);
     }
 
     // 연결선 찾기
@@ -1446,35 +1605,48 @@ class PrototypingTool {
         svg.style.left = '0';
         svg.style.width = '100%';
         svg.style.height = '100%';
-        svg.style.pointerEvents = 'none';  // SVG 자체는 이벤트를 가로채지 않음
+        svg.style.pointerEvents = 'none';
         
-        // 연결선 생성 (path 요소로 변경)
+        // 시작점과 끝점 계산
+        const start = this.connectionManager.getConnectionPoint(connection.sourceId, connection.sourcePosition);
+        const end = this.connectionManager.getConnectionPoint(connection.targetId, connection.targetPosition);
+        
+        if (!start || !end) return;
+    
+        // 경로 계산
+        const points = this.connectionManager.calculateOrthogonalPath(start, end);
+        const pathD = this.connectionManager.createSvgPath(points);
+    
+        // 연결선 생성
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', pathD);
         path.setAttribute('stroke', connection.color || '#2196f3');
         path.setAttribute('stroke-width', connection.strokeWidth || 2);
         path.setAttribute('fill', 'none');
-        path.style.pointerEvents = 'all';  // path는 이벤트를 받을 수 있도록 설정
+        path.style.pointerEvents = 'all';
         
         if (connection.lineStyle === 'dashed') {
             path.setAttribute('stroke-dasharray', '5,5');
         }
         
-        // 위치 계산 및 설정
-        this.updateConnectionPosition(connection, path);
-        
-        svg.appendChild(path);
-    
         // 관계 타입 레이블 생성
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.style.pointerEvents = 'all';  // 텍스트도 이벤트를 받을 수 있도록 설정
+        text.style.pointerEvents = 'all';
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('alignment-baseline', 'middle');
         text.setAttribute('fill', '#2196f3');
         text.setAttribute('font-size', '12');
         
+        // 레이블 위치 계산 (경로의 중간점)
+        const midPoint = this.connectionManager.getMidPoint(points);
+        text.setAttribute('x', midPoint.x);
+        text.setAttribute('y', midPoint.y);
+        
         const relationSymbol = this.relationTypes.find(t => t.name === connection.type)?.symbol || '';
         text.textContent = relationSymbol;
         
+        // SVG에 요소 추가
+        svg.appendChild(path);
         svg.appendChild(text);
         canvas.appendChild(svg);
     
@@ -1483,26 +1655,26 @@ class PrototypingTool {
         path.dataset.connectionId = connection.id;
         text.dataset.connectionId = connection.id;
     
-        // 연결선 클릭 이벤트
+        // 이벤트 리스너 추가
         const handleClick = (e) => {
             e.stopPropagation();
             this.connectionManager.selectConnection(connection);
         };
     
-        // 더블클릭 이벤트
         const handleDblClick = (e) => {
             e.stopPropagation();
             this.connectionManager.showRelationEditDialog(connection);
         };
     
-        // path와 text 모두에 이벤트 리스너 추가
         [path, text].forEach(element => {
             element.addEventListener('click', handleClick);
             element.addEventListener('dblclick', handleDblClick);
         });
     
-        // 연결선 위치 업데이트
-        this.updateConnectionPosition(connection, path);
+        // 첫 렌더링 후 연결선 업데이트 트리거
+        requestAnimationFrame(() => {
+            this.connectionManager.updateConnection(connection);
+        });
     }
 
     // 연결선 위치 업데이트
@@ -1511,26 +1683,42 @@ class PrototypingTool {
         const targetPoint = this.getConnectionPoint(connection.targetId, connection.targetPosition);
         
         if (!sourcePoint || !targetPoint) return;
-
-        // 컨트롤 포인트가 있는 경우 곡선으로, 없는 경우 직선으로 처리
-        let pathData;
-        if (connection.controlPoint) {
-            pathData = `M ${sourcePoint.x} ${sourcePoint.y} Q ${connection.controlPoint.x} ${connection.controlPoint.y} ${targetPoint.x} ${targetPoint.y}`;
-        } else {
-            pathData = `M ${sourcePoint.x} ${sourcePoint.y} L ${targetPoint.x} ${targetPoint.y}`;
-        }
+    
+        // 직각 경로 계산
+        const points = this.connectionManager.calculateOrthogonalPath(sourcePoint, targetPoint);
+        const pathD = this.connectionManager.createSvgPath(points);
         
-        path.setAttribute('d', pathData);
-
+        // 경로 업데이트
+        path.setAttribute('d', pathD);
+    
         // 레이블 위치 업데이트
         const labelElement = path.parentElement?.querySelector('text');
         if (labelElement) {
-            // 레이블 위치를 경로의 중간점으로 계산
-            const midX = (sourcePoint.x + targetPoint.x) / 2;
-            const midY = (sourcePoint.y + targetPoint.y) / 2;
-            labelElement.setAttribute('x', midX);
-            labelElement.setAttribute('y', midY);
+            // 중간점 계산
+            const midPoint = this.connectionManager.getMidPoint(points);
+            labelElement.setAttribute('x', midPoint.x);
+            labelElement.setAttribute('y', midPoint.y);
+            
+            // 레이블 방향 조정
+            const angle = this.calculateLabelAngle(points);
+            if (angle !== 0) {
+                labelElement.setAttribute('transform', `rotate(${angle} ${midPoint.x} ${midPoint.y})`);
+            } else {
+                labelElement.removeAttribute('transform');
+            }
         }
+    }
+
+    calculateLabelAngle(points) {
+        const midIndex = Math.floor(points.length / 2);
+        const p1 = points[midIndex - 1];
+        const p2 = points[midIndex];
+        
+        // 수평선인 경우 0도, 수직선인 경우 -90도
+        if (p1[0] === p2[0]) { // 수직선
+            return -90;
+        }
+        return 0;
     }
 
     // 연결점 위치 계산
@@ -2477,6 +2665,14 @@ class PrototypingTool {
         if (elementDiv) {
             elementDiv.style.left = `${this.draggedElement.x}px`;
             elementDiv.style.top = `${this.draggedElement.y}px`;
+            
+            // 연결된 모든 선 업데이트
+            this.connections.forEach(connection => {
+                if (connection.sourceId === this.draggedElement.id || 
+                    connection.targetId === this.draggedElement.id) {
+                    this.connectionManager.updateConnection(connection);
+                }
+            });
         }
     
         this.updateProperties();
