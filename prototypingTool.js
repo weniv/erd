@@ -93,16 +93,12 @@ class OrthogonalConnectionManager {
 
     // 연결선 업데이트
     updateConnection(connection) {
-        const sourceElement = document.getElementById(`element-${connection.sourceId}`);
-        const targetElement = document.getElementById(`element-${connection.targetId}`);
-        
-        if (!sourceElement || !targetElement) return;
-
         const start = this.getConnectionPoint(connection.sourceId, connection.sourcePosition);
         const end = this.getConnectionPoint(connection.targetId, connection.targetPosition);
         
         if (!start || !end) return;
 
+        // 수정된 부분: 연결선의 경로를 다시 계산하고 SVG path 업데이트
         const points = this.calculateOrthogonalPath(start, end);
         const pathD = this.createSvgPath(points);
 
@@ -113,7 +109,7 @@ class OrthogonalConnectionManager {
                 path.setAttribute('d', pathD);
             }
 
-            // 레이블 위치 업데이트
+            // 레이블 위치도 업데이트
             const text = svg.querySelector('text');
             if (text) {
                 const midPoint = this.getMidPoint(points);
@@ -136,25 +132,30 @@ class OrthogonalConnectionManager {
     getConnectionPoint(elementId, position) {
         const element = document.getElementById(`element-${elementId}`);
         if (!element) return null;
-
+    
         const rect = element.getBoundingClientRect();
         const canvas = document.getElementById('canvas');
         const canvasRect = canvas.getBoundingClientRect();
-
+    
         // 캔버스의 transform 상태를 고려한 좌표 계산
         const x = (rect.left - canvasRect.left) / this.tool.scale - this.tool.canvasOffset.x / this.tool.scale;
         const y = (rect.top - canvasRect.top) / this.tool.scale - this.tool.canvasOffset.y / this.tool.scale;
         const width = rect.width / this.tool.scale;
         const height = rect.height / this.tool.scale;
-
-        const positions = {
-            top: { x: x + width / 2, y: y, position: 'top' },
-            right: { x: x + width, y: y + height / 2, position: 'right' },
-            bottom: { x: x + width / 2, y: y + height, position: 'bottom' },
-            left: { x: x, y: y + height / 2, position: 'left' }
-        };
-
-        return positions[position];
+    
+        // 각 위치에 따른 연결점 위치 반환
+        switch (position) {
+            case 'top':
+                return { x: x + width / 2, y, position: 'top' };
+            case 'right':
+                return { x: x + width, y: y + height / 2, position: 'right' };
+            case 'bottom':
+                return { x: x + width / 2, y: y + height, position: 'bottom' };
+            case 'left':
+                return { x, y: y + height / 2, position: 'left' };
+            default:
+                return null;
+        }
     }
 }
 
@@ -488,31 +489,32 @@ class ConnectionManager {
         this.tool.saveHistory();
     }
 
-    updateConnection(connectionId, properties) {
-        const connection = this.tool.connections.find(c => c.id === connectionId);
-        if (!connection) return;
-
-        // 연결 속성 업데이트
-        Object.assign(connection, properties);
-
-        // SVG 요소 업데이트
-        const svg = document.querySelector(`[data-connection-id="${connectionId}"]`);
+    updateConnection(connection) {
+        // 시작점과 끝점 계산
+        const start = this.getConnectionPoint(connection.sourceId, connection.sourcePosition);
+        const end = this.getConnectionPoint(connection.targetId, connection.targetPosition);
+        
+        if (!start || !end) return;
+    
+        // 경로 계산
+        const points = this.calculateOrthogonalPath(start, end);
+        const pathD = this.createSvgPath(points);
+    
+        const svg = document.querySelector(`[data-connection-id="${connection.id}"]`);
         if (svg) {
-            // 관계 타입 레이블 업데이트
+            const path = svg.querySelector('path');
+            if (path) {
+                path.setAttribute('d', pathD);
+            }
+    
+            // 레이블 위치도 업데이트
             const text = svg.querySelector('text');
             if (text) {
-                const relationSymbol = this.tool.relationTypes.find(t => t.name === properties.type)?.symbol;
-                text.textContent = relationSymbol;
-            }
-
-            // 식별 관계 표시 업데이트
-            const line = svg.querySelector('line');
-            if (line && properties.identifying !== undefined) {
-                line.style.strokeWidth = properties.identifying ? '3' : '2';
+                const midPoint = this.getMidPoint(points);
+                text.setAttribute('x', midPoint.x);
+                text.setAttribute('y', midPoint.y);
             }
         }
-
-        this.tool.saveHistory();
     }
 
     updateConnectionStyle(connectionId, style) {
@@ -2066,7 +2068,7 @@ class PrototypingTool {
         return badge;
     }
 
-    // 제약조건 선택 다이얼로그 표시
+    // 제��조건 선택 다이얼로그 표시
     showConstraintDialog(element, column, rowIndex, constraintsContainer) {
         const dialog = document.createElement('div');
         dialog.className = 'constraint-dialog';
@@ -2644,19 +2646,16 @@ class PrototypingTool {
         if (elementDiv) {
             elementDiv.style.left = `${this.draggedElement.x}px`;
             elementDiv.style.top = `${this.draggedElement.y}px`;
-            
-            // 연결된 모든 선 업데이트
+    
+            // 모든 연결선 업데이트
             this.connections.forEach(connection => {
-                if (connection.sourceId === this.draggedElement.id || 
-                    connection.targetId === this.draggedElement.id) {
-                    this.connectionManager.updateConnection(connection);
-                }
+                this.connectionManager.updateConnection(connection);
             });
         }
     
         this.updateProperties();
     }
-
+    
     selectElement(element) {
         this.clearSelection();  // 먼저 이전 선택을 모두 해제
         this.selectedElement = element;
@@ -3659,7 +3658,7 @@ class PrototypingTool {
 
                     // connections 복원
                     this.connections = data.pages[0].connections || [];
-                    // 연결선 다시 그리기
+                    // ���결선 다시 그리기
                     this.connections.forEach(connection => {
                         this.renderConnection(connection);
                     });
@@ -3939,4 +3938,4 @@ class PrototypingTool {
 }
 
 // 툴 초기화
-const tool = new PrototypingTool();
+const tool = new PrototypingTool();// 툴 초기화
