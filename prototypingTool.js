@@ -100,7 +100,10 @@ class OrthogonalConnectionManager {
 
         // 수정된 부분: 연결선의 경로를 다시 계산하고 SVG path 업데이트
         const points = this.calculateOrthogonalPath(start, end);
+        if (!points || points.length < 2) return;  // points 배열 검증 추가
+
         const pathD = this.createSvgPath(points);
+        if (!pathD) return; // pathD가 유효하지 않으면 리턴
 
         const svg = document.querySelector(`[data-connection-id="${connection.id}"]`);
         if (svg) {
@@ -111,10 +114,12 @@ class OrthogonalConnectionManager {
 
             // 레이블 위치도 업데이트
             const text = svg.querySelector('text');
-            if (text) {
+            if (text && points.length > 0) {  // points 배열이 비어있지 않은지 확인
                 const midPoint = this.getMidPoint(points);
-                text.setAttribute('x', midPoint.x);
-                text.setAttribute('y', midPoint.y);
+                if (midPoint && typeof midPoint.x === 'number' && typeof midPoint.y === 'number') {
+                    text.setAttribute('x', midPoint.x.toString());
+                    text.setAttribute('y', midPoint.y.toString());
+                }
             }
         }
     }
@@ -162,11 +167,107 @@ class OrthogonalConnectionManager {
 class ConnectionManager {
     constructor(tool) {
         this.tool = tool;
+        // orthogonalConnectionManager는 이미 tool에 있으므로 직접 참조할 필요 없음
         
         this.selectConnection = this.selectConnection.bind(this);
         this.showRelationEditDialog = this.showRelationEditDialog.bind(this);
-
         this.initializeConnectionControls();
+    }
+
+    selectConnection(connection) {
+        // 이전 선택 해제
+        if (this.selectedConnection) {
+            const prevPath = document.querySelector(
+                `[data-connection-id="${this.selectedConnection.id}"] path`
+            );
+            if (prevPath) {
+                prevPath.classList.remove('selected');
+            }
+        }
+
+        this.selectedConnection = connection;
+        const path = document.querySelector(
+            `[data-connection-id="${connection.id}"] path`
+        );
+        if (path) {
+            path.classList.add('selected');
+        }
+
+        // ConnectionManager에 선택 이벤트 발송
+        const event = new CustomEvent('connection-selected', { detail: connection });
+        document.getElementById('properties').dispatchEvent(event);
+    }
+
+    showRelationEditDialog(connection) {
+        const dialog = document.createElement('div');
+        dialog.className = 'relation-dialog';
+        
+        dialog.innerHTML = `
+            <div class="dialog-content">
+                <h3>Edit Relationship Type</h3>
+                <div class="relation-options">
+                    ${this.tool.relationTypes.map(type => `
+                        <button class="relation-option ${type.name === connection.type ? 'active' : ''}"
+                                data-type="${type.name}">
+                            <span class="relation-name">${type.name}</span>
+                            <span class="relation-symbol">${type.symbol}</span>
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="dialog-buttons">
+                    <button class="apply-btn">Apply</button>
+                    <button class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+
+        // 관계 옵션 선택 스타일링
+        const handleOptionClick = (btn) => {
+            // 기존 선택 해제
+            dialog.querySelectorAll('.relation-option').forEach(b => 
+                b.classList.remove('active')
+            );
+            // 새로운 선택 활성화
+            btn.classList.add('active');
+        };
+
+        dialog.querySelectorAll('.relation-option').forEach(button => {
+            button.onclick = () => handleOptionClick(button);
+        });
+
+        // 현재 선택된 관계 타입에 대한 스타일 적용
+        const currentOption = dialog.querySelector(`[data-type="${connection.type}"]`);
+        if (currentOption) {
+            currentOption.classList.add('active');
+        }
+
+        // Apply 버튼 핸들러
+        dialog.querySelector('.apply-btn').onclick = () => {
+            const activeOption = dialog.querySelector('.relation-option.active');
+            if (activeOption) {
+                const newType = activeOption.dataset.type;
+                const identifying = dialog.querySelector('[name="identifying"]')?.checked;
+                
+                // 연결 객체 업데이트
+                connection.type = newType;
+                if (identifying !== undefined) {
+                    connection.identifying = identifying;
+                }
+        
+                // 연결선 표시 업데이트
+                this.tool.updateConnectionDisplay(connection);
+                
+                document.body.removeChild(dialog);
+                this.selectConnection(connection); // 속성 패널 업데이트
+            }
+        };
+
+        // Cancel 버튼 핸들러
+        dialog.querySelector('.cancel-btn').onclick = () => {
+            document.body.removeChild(dialog);
+        };
+
+        document.body.appendChild(dialog);
     }
 
     initializeConnectionControls() {
@@ -242,7 +343,7 @@ class ConnectionManager {
         
         dialog.innerHTML = `
             <div class="dialog-content">
-                <h3>관계 편집</h3>
+                <h3>Edit Relationship Type</h3>
                 <div class="relation-options">
                     ${this.tool.relationTypes.map(type => `
                         <button class="relation-option ${type.name === connection.type ? 'active' : ''}"
@@ -256,35 +357,25 @@ class ConnectionManager {
                     <label>
                         <input type="checkbox" name="identifying" 
                             ${connection.identifying ? 'checked' : ''}>
-                        식별 관계
+                        Identifying Relationship
                     </label>
                 </div>
                 <div class="dialog-buttons">
-                    <button class="apply-btn">적용</button>
-                    <button class="cancel-btn">취소</button>
+                    <button class="apply-btn">Apply</button>
+                    <button class="cancel-btn">Cancel</button>
                 </div>
             </div>
         `;
     
-        // 관계 옵션 선택 스타일링
-        const handleOptionClick = (btn) => {
-            // 기존 선택 해제
-            dialog.querySelectorAll('.relation-option').forEach(b => 
-                b.classList.remove('active')
-            );
-            // 새로운 선택 활성화
-            btn.classList.add('active');
-        };
-    
+        // 관계 옵션 선택 이벤트
         dialog.querySelectorAll('.relation-option').forEach(button => {
-            button.onclick = () => handleOptionClick(button);
+            button.onclick = () => {
+                dialog.querySelectorAll('.relation-option').forEach(b => 
+                    b.classList.remove('active')
+                );
+                button.classList.add('active');
+            };
         });
-    
-        // 현재 선택된 관계 타입에 대한 스타일 적용
-        const currentOption = dialog.querySelector(`[data-type="${connection.type}"]`);
-        if (currentOption) {
-            currentOption.classList.add('active');
-        }
     
         // Apply 버튼 핸들러
         dialog.querySelector('.apply-btn').onclick = () => {
@@ -293,33 +384,12 @@ class ConnectionManager {
                 const newType = activeOption.dataset.type;
                 const identifying = dialog.querySelector('[name="identifying"]').checked;
                 
-                // 연결 객체 업데이트
+                // 연결 속성 업데이트
                 connection.type = newType;
                 connection.identifying = identifying;
     
                 // SVG 요소 업데이트
-                const svg = document.querySelector(`[data-connection-id="${connection.id}"]`);
-                if (svg) {
-                    // 관계 타입 레이블 업데이트
-                    const text = svg.querySelector('text');
-                    if (text) {
-                        const relationSymbol = this.tool.relationTypes.find(t => t.name === newType)?.symbol;
-                        text.textContent = relationSymbol;
-                    }
-    
-                    // 식별 관계 표시 업데이트
-                    const line = svg.querySelector('line');
-                    if (line) {
-                        line.style.strokeWidth = identifying ? '3' : '2';
-                    }
-    
-                    const path = svg.querySelector('path');
-                    if (path) {
-                        path.style.strokeWidth = identifying ? '3' : '2';
-                    }
-                }
-    
-                this.tool.saveHistory();
+                this.tool.updateConnectionDisplay(connection);
             }
             document.body.removeChild(dialog);
         };
@@ -328,15 +398,6 @@ class ConnectionManager {
         dialog.querySelector('.cancel-btn').onclick = () => {
             document.body.removeChild(dialog);
         };
-    
-        // ESC 키 핸들러 추가
-        const handleEsc = (e) => {
-            if (e.key === 'Escape') {
-                document.body.removeChild(dialog);
-                document.removeEventListener('keydown', handleEsc);
-            }
-        };
-        document.addEventListener('keydown', handleEsc);
     
         document.body.appendChild(dialog);
     }
@@ -490,27 +551,26 @@ class ConnectionManager {
     }
 
     updateConnection(connection) {
-        // 시작점과 끝점 계산
-        const start = this.getConnectionPoint(connection.sourceId, connection.sourcePosition);
-        const end = this.getConnectionPoint(connection.targetId, connection.targetPosition);
+        const start = this.tool.orthogonalConnectionManager.getConnectionPoint(connection.sourceId, connection.sourcePosition);
+        const end = this.tool.orthogonalConnectionManager.getConnectionPoint(connection.targetId, connection.targetPosition);
         
         if (!start || !end) return;
-    
+
         // 경로 계산
-        const points = this.calculateOrthogonalPath(start, end);
-        const pathD = this.createSvgPath(points);
-    
+        const points = this.tool.orthogonalConnectionManager.calculateOrthogonalPath(start, end);
+        const pathD = this.tool.orthogonalConnectionManager.createSvgPath(points);
+
         const svg = document.querySelector(`[data-connection-id="${connection.id}"]`);
         if (svg) {
             const path = svg.querySelector('path');
             if (path) {
                 path.setAttribute('d', pathD);
             }
-    
+
             // 레이블 위치도 업데이트
             const text = svg.querySelector('text');
             if (text) {
-                const midPoint = this.getMidPoint(points);
+                const midPoint = this.tool.orthogonalConnectionManager.getMidPoint(points);
                 text.setAttribute('x', midPoint.x);
                 text.setAttribute('y', midPoint.y);
             }
@@ -530,6 +590,60 @@ class ConnectionManager {
             line.style.stroke = style.color;
             line.style.strokeWidth = style.strokeWidth;
             line.style.strokeDasharray = style.lineStyle === 'dashed' ? '5,5' : 'none';
+        }
+
+        this.tool.saveHistory();
+    }
+
+    showConnectionProperties(connection) {
+        const propertiesDiv = document.getElementById('properties');
+        
+        propertiesDiv.innerHTML = `
+            <div class="property-group">
+                <label class="property-label">Relationship Type</label>
+                <div class="relation-type">${connection.type}</div>
+            </div>
+            <div class="property-group">
+                <label class="property-label">Style</label>
+                <div class="connection-style-controls">
+                    <div class="color-control">
+                        <label>Color</label>
+                        <input type="color" 
+                            value="${connection.color || '#2196f3'}"
+                            onchange="tool.connectionManager.updateConnectionStyle('${connection.id}', {color: this.value})">
+                    </div>
+                    <div class="line-style-control">
+                        <label>Line Style</label>
+                        <select onchange="tool.connectionManager.updateConnectionStyle('${connection.id}', {lineStyle: this.value})">
+                            <option value="solid" ${connection.lineStyle === 'solid' ? 'selected' : ''}>Solid</option>
+                            <option value="dashed" ${connection.lineStyle === 'dashed' ? 'selected' : ''}>Dashed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <button onclick="tool.connectionManager.showRelationEditDialog(tool.connections.find(c => c.id === ${connection.id}))">
+                Edit Relationship
+            </button>
+        `;
+    }
+    
+    // updateConnectionStyle 메서드 추가
+    updateConnectionStyle(connectionId, style) {
+        const connection = this.tool.connections.find(c => c.id === connectionId);
+        if (!connection) return;
+
+        // 스타일 속성 업데이트
+        Object.assign(connection, style);
+
+        // SVG 요소 업데이트
+        const path = document.querySelector(`[data-connection-id="${connectionId}"] path`);
+        if (path) {
+            if (style.color) {
+                path.setAttribute('stroke', style.color);
+            }
+            if (style.lineStyle) {
+                path.setAttribute('stroke-dasharray', style.lineStyle === 'dashed' ? '5,5' : 'none');
+            }
         }
 
         this.tool.saveHistory();
@@ -640,7 +754,9 @@ class PrototypingTool {
         this.saveHistory();
 
         this.selectedConnection = null;
-        this.connectionManager = new OrthogonalConnectionManager(this);
+
+        this.orthogonalConnectionManager = new OrthogonalConnectionManager(this);
+        this.connectionManager = new ConnectionManager(this);
     }
 
     // 연결선 찾기
@@ -730,6 +846,30 @@ class PrototypingTool {
         // ConnectionManager에 선택 이벤트 발송
         const event = new CustomEvent('connection-selected', { detail: connection });
         document.getElementById('properties').dispatchEvent(event);
+    }
+
+    updateConnectionDisplay(connection) {
+        const svg = document.querySelector(`[data-connection-id="${connection.id}"]`);
+        if (!svg) return;
+
+        // path 업데이트
+        const path = svg.querySelector('path');
+        if (path) {
+            if (connection.identifying) {
+                path.setAttribute('stroke-width', '3');
+            } else {
+                path.setAttribute('stroke-width', '2');
+            }
+        }
+
+        // text 업데이트
+        const text = svg.querySelector('text');
+        if (text) {
+            const relationSymbol = this.relationTypes.find(t => t.name === connection.type)?.symbol;
+            text.textContent = relationSymbol;
+        }
+
+        this.saveHistory();
     }
 
     
@@ -1620,14 +1760,14 @@ class PrototypingTool {
         svg.style.pointerEvents = 'none';
         
         // 시작점과 끝점 계산
-        const start = this.connectionManager.getConnectionPoint(connection.sourceId, connection.sourcePosition);
-        const end = this.connectionManager.getConnectionPoint(connection.targetId, connection.targetPosition);
+        const start = this.orthogonalConnectionManager.getConnectionPoint(connection.sourceId, connection.sourcePosition);
+        const end = this.orthogonalConnectionManager.getConnectionPoint(connection.targetId, connection.targetPosition);
         
         if (!start || !end) return;
     
         // 경로 계산
-        const points = this.connectionManager.calculateOrthogonalPath(start, end);
-        const pathD = this.connectionManager.createSvgPath(points);
+        const points = this.orthogonalConnectionManager.calculateOrthogonalPath(start, end);
+        const pathD = this.orthogonalConnectionManager.createSvgPath(points);
     
         // 연결선 생성
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -1636,21 +1776,19 @@ class PrototypingTool {
         path.setAttribute('stroke-width', connection.strokeWidth || 2);
         path.setAttribute('fill', 'none');
         path.style.pointerEvents = 'all';
-        
-        if (connection.lineStyle === 'dashed') {
-            path.setAttribute('stroke-dasharray', '5,5');
-        }
+        path.style.cursor = 'pointer';
         
         // 관계 타입 레이블 생성
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.style.pointerEvents = 'all';
+        text.style.cursor = 'pointer';
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('alignment-baseline', 'middle');
         text.setAttribute('fill', '#2196f3');
         text.setAttribute('font-size', '12');
         
         // 레이블 위치 계산 (경로의 중간점)
-        const midPoint = this.connectionManager.getMidPoint(points);
+        const midPoint = this.orthogonalConnectionManager.getMidPoint(points);
         text.setAttribute('x', midPoint.x);
         text.setAttribute('y', midPoint.y);
         
@@ -1685,20 +1823,19 @@ class PrototypingTool {
     
         // 첫 렌더링 후 연결선 업데이트 트리거
         requestAnimationFrame(() => {
-            this.connectionManager.updateConnection(connection);
+            this.orthogonalConnectionManager.updateConnection(connection);
         });
     }
 
     // 연결선 위치 업데이트
     updateConnectionPosition(connection, path) {
-        const sourcePoint = this.getConnectionPoint(connection.sourceId, connection.sourcePosition);
-        const targetPoint = this.getConnectionPoint(connection.targetId, connection.targetPosition);
+        const sourcePoint = this.orthogonalConnectionManager.getConnectionPoint(connection.sourceId, connection.sourcePosition);
+        const targetPoint = this.orthogonalConnectionManager.getConnectionPoint(connection.targetId, connection.targetPosition);
         
         if (!sourcePoint || !targetPoint) return;
-    
-        // 직각 경로 계산
-        const points = this.connectionManager.calculateOrthogonalPath(sourcePoint, targetPoint);
-        const pathD = this.connectionManager.createSvgPath(points);
+
+        const points = this.orthogonalConnectionManager.calculateOrthogonalPath(sourcePoint, targetPoint);
+        const pathD = this.orthogonalConnectionManager.createSvgPath(points);
         
         // 경로 업데이트
         path.setAttribute('d', pathD);
@@ -2649,12 +2786,13 @@ class PrototypingTool {
     
             // 모든 연결선 업데이트
             this.connections.forEach(connection => {
-                this.connectionManager.updateConnection(connection);
+                this.orthogonalConnectionManager.updateConnection(connection);
             });
         }
     
         this.updateProperties();
     }
+    
     
     selectElement(element) {
         this.clearSelection();  // 먼저 이전 선택을 모두 해제
@@ -3000,7 +3138,7 @@ class PrototypingTool {
                         class="property-input auto-resize" 
                         onchange="tool.updateElementProperty('content', this.value)"
                         oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"
-                    >${this.selectedElement.content}</textarea>
+                    >${this.selectedElement.content || ''}</textarea>
                 `
             }
         ];
@@ -3011,9 +3149,10 @@ class PrototypingTool {
         const sections = [
             ...commonSections.map(section => this.createPropertyGroup(section.title, section.content)),
             specialControl && this.createPropertyGroup(specialControl.title, specialControl.html)
-        ].filter(Boolean);
+        ].filter(section => section !== undefined && section !== '');
     
-        propertiesDiv.innerHTML = sections.join('');
+        const validSections = sections.filter(Boolean).join('') || ''; // 기본값으로 빈 문자열 설정
+        propertiesDiv.innerHTML = validSections;
     
         // textarea 자동 높이 조절
         const textarea = propertiesDiv.querySelector('textarea.auto-resize');

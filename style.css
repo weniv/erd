@@ -1544,13 +1544,29 @@ h2 {
 }
 
 /* 연결선 스타일 */
-.connection-line {
+/* .connection-line {
     pointer-events: none;
-}
+} */
 
 .connection-line path {
+    pointer-events: all;
     cursor: pointer;
     transition: stroke-width 0.2s;
+}
+
+.connection-line path.selected {
+    stroke-width: 3px;
+}
+
+.connection-style-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.connection-line text {
+    pointer-events: all;
+    cursor: pointer;
 }
 
 .connection-line path.selected {
