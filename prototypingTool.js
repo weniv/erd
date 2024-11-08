@@ -1360,6 +1360,7 @@ class PrototypingTool {
         svg.style.width = '100%';
         svg.style.height = '100%';
         svg.style.pointerEvents = 'none';
+        svg.style.zIndex = '2';
         
         // 라인 요소 생성
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
