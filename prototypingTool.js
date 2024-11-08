@@ -304,16 +304,6 @@ class ConnectionManager {
     }
 
     initializeConnectionControls() {
-        // 연결선 컨텍스트 메뉴 초기화
-        const canvas = document.getElementById('canvas');
-        canvas.addEventListener('contextmenu', (e) => {
-            const connection = this.tool.findConnectionAtPoint(e.clientX, e.clientY);
-            if (connection) {
-                e.preventDefault();
-                this.showConnectionContextMenu(e, connection);
-            }
-        });
-
         // 프로퍼티 패널에 연결 스타일 컨트롤 추가
         document.getElementById('properties').addEventListener('connection-selected', (e) => {
             const connection = e.detail;
@@ -338,16 +328,6 @@ class ConnectionManager {
         // 메뉴 이벤트 핸들러
         menu.querySelector('.edit').onclick = () => {
             this.showRelationEditDialog(connection);
-            document.body.removeChild(menu);
-        };
-
-        menu.querySelector('.style').onclick = () => {
-            this.showStyleEditor(connection);
-            document.body.removeChild(menu);
-        };
-
-        menu.querySelector('.route').onclick = () => {
-            this.enableRouteEditing(connection);
             document.body.removeChild(menu);
         };
 
@@ -435,154 +415,6 @@ class ConnectionManager {
         document.body.appendChild(dialog);
     }
 
-    showStyleEditor(connection) {
-        const dialog = document.createElement('div');
-        dialog.className = 'connection-style-dialog';
-        
-        dialog.innerHTML = `
-            <div class="dialog-content">
-                <h3>연결선 스타일</h3>
-                <div class="style-options">
-                    <div class="style-option">
-                        <label>색상</label>
-                        <input type="color" class="color-picker" value="${connection.color || '#2196f3'}">
-                    </div>
-                    <div class="style-option">
-                        <label>선 두께</label>
-                        <input type="range" min="1" max="5" value="${connection.strokeWidth || 2}" class="width-slider">
-                    </div>
-                    <div class="style-option">
-                        <label>선 스타일</label>
-                        <select class="line-style">
-                            <option value="solid" ${connection.lineStyle === 'solid' ? 'selected' : ''}>실선</option>
-                            <option value="dashed" ${connection.lineStyle === 'dashed' ? 'selected' : ''}>점선</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="dialog-buttons">
-                    <button class="apply-btn">적용</button>
-                    <button class="cancel-btn">취소</button>
-                </div>
-            </div>
-        `;
-
-        // 스타일 변경 이벤트 핸들러
-        dialog.querySelector('.apply-btn').onclick = () => {
-            const color = dialog.querySelector('.color-picker').value;
-            const strokeWidth = dialog.querySelector('.width-slider').value;
-            const lineStyle = dialog.querySelector('.line-style').value;
-
-            this.updateConnectionStyle(connection.id, {
-                color: color,
-                strokeWidth: strokeWidth,
-                lineStyle: lineStyle
-            });
-
-            document.body.removeChild(dialog);
-        };
-
-        document.body.appendChild(dialog);
-    }
-
-    enableRouteEditing(connection) {
-        // 연결선에 조절점 추가
-        const line = document.querySelector(`[data-connection-id="${connection.id}"] line`);
-        if (!line) return;
-
-        // 기존 직선을 path로 변환
-        const path = this.createPathFromLine(line);
-        line.replaceWith(path);
-
-        // 조절점 추가
-        this.addControlPoints(path, connection);
-    }
-
-    createPathFromLine(line) {
-        const x1 = line.getAttribute('x1');
-        const y1 = line.getAttribute('y1');
-        const x2 = line.getAttribute('x2');
-        const y2 = line.getAttribute('y2');
-
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
-        path.setAttribute('stroke', line.getAttribute('stroke'));
-        path.setAttribute('stroke-width', line.getAttribute('stroke-width'));
-
-        return path;
-    }
-
-    addControlPoints(path, connection) {
-        // path의 중간점에 조절점 추가
-        const points = path.getAttribute('d').split(' ');
-        const x1 = parseFloat(points[1]);
-        const y1 = parseFloat(points[2]);
-        const x2 = parseFloat(points[4]);
-        const y2 = parseFloat(points[5]);
-
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
-
-        // 조절점 생성
-        const controlPoint = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        controlPoint.setAttribute('cx', midX);
-        controlPoint.setAttribute('cy', midY);
-        controlPoint.setAttribute('r', 5);
-        controlPoint.setAttribute('fill', '#2196f3');
-        controlPoint.setAttribute('cursor', 'move');
-
-        // 조절점 드래그 이벤트
-        this.enableControlPointDrag(controlPoint, path, connection);
-
-        path.parentNode.appendChild(controlPoint);
-    }
-
-    enableControlPointDrag(point, path, connection) {
-        let dragging = false;
-        let offset = { x: 0, y: 0 };
-
-        point.addEventListener('mousedown', (e) => {
-            dragging = true;
-            offset = {
-                x: e.clientX - parseFloat(point.getAttribute('cx')),
-                y: e.clientY - parseFloat(point.getAttribute('cy'))
-            };
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!dragging) return;
-
-            const x = e.clientX - offset.x;
-            const y = e.clientY - offset.y;
-
-            point.setAttribute('cx', x);
-            point.setAttribute('cy', y);
-
-            // path 업데이트
-            this.updatePathWithControlPoint(path, {x, y}, connection);
-        });
-
-        document.addEventListener('mouseup', () => {
-            dragging = false;
-        });
-    }
-
-    updatePathWithControlPoint(path, controlPoint, connection) {
-        // path의 시작점과 끝점 가져오기
-        const points = path.getAttribute('d').split(' ');
-        const x1 = parseFloat(points[1]);
-        const y1 = parseFloat(points[2]);
-        const x2 = parseFloat(points[4]);
-        const y2 = parseFloat(points[5]);
-
-        // 곡선 path로 업데이트
-        const d = `M ${x1} ${y1} Q ${controlPoint.x} ${controlPoint.y} ${x2} ${y2}`;
-        path.setAttribute('d', d);
-
-        // 연결 객체 업데이트
-        connection.controlPoint = controlPoint;
-        this.tool.saveHistory();
-    }
-
     updateConnection(connection) {
         const start = this.tool.orthogonalConnectionManager.getConnectionPoint(connection.sourceId, connection.sourcePosition);
         const end = this.tool.orthogonalConnectionManager.getConnectionPoint(connection.targetId, connection.targetPosition);
@@ -608,24 +440,6 @@ class ConnectionManager {
                 text.setAttribute('y', midPoint.y);
             }
         }
-    }
-
-    updateConnectionStyle(connectionId, style) {
-        const connection = this.tool.connections.find(c => c.id === connectionId);
-        if (!connection) return;
-
-        // 스타일 속성 업데이트
-        Object.assign(connection, style);
-
-        // SVG 요소 스타일 업데이트
-        const line = document.querySelector(`[data-connection-id="${connectionId}"] line`);
-        if (line) {
-            line.style.stroke = style.color;
-            line.style.strokeWidth = style.strokeWidth;
-            line.style.strokeDasharray = style.lineStyle === 'dashed' ? '5,5' : 'none';
-        }
-
-        this.tool.saveHistory();
     }
 
     showConnectionProperties(connection) {
@@ -792,69 +606,6 @@ class PrototypingTool {
         this.connectionManager = new ConnectionManager(this);
     }
 
-    // 연결선 찾기
-    findConnectionAtPoint(x, y) {
-        const canvas = document.getElementById('canvas');
-        const rect = canvas.getBoundingClientRect();
-        const clickX = x - rect.left;
-        const clickY = y - rect.top;
-
-        return this.connections.find(connection => {
-            const line = document.querySelector(`[data-connection-id="${connection.id}"] line`);
-            if (!line) return false;
-
-            const lineRect = line.getBoundingClientRect();
-            const threshold = 5; // 클릭 허용 범위
-
-            // 선과 클릭 지점 사이의 거리 계산
-            const x1 = parseFloat(line.getAttribute('x1'));
-            const y1 = parseFloat(line.getAttribute('y1'));
-            const x2 = parseFloat(line.getAttribute('x2'));
-            const y2 = parseFloat(line.getAttribute('y2'));
-
-            const distance = this.pointToLineDistance(
-                clickX, clickY,
-                x1, y1,
-                x2, y2
-            );
-
-            return distance < threshold;
-        });
-    }
-
-    // 점과 선 사이의 거리 계산
-    pointToLineDistance(x, y, x1, y1, x2, y2) {
-        const A = x - x1;
-        const B = y - y1;
-        const C = x2 - x1;
-        const D = y2 - y1;
-
-        const dot = A * C + B * D;
-        const lenSq = C * C + D * D;
-        let param = -1;
-
-        if (lenSq !== 0) {
-            param = dot / lenSq;
-        }
-
-        let xx, yy;
-
-        if (param < 0) {
-            xx = x1;
-            yy = y1;
-        } else if (param > 1) {
-            xx = x2;
-            yy = y2;
-        } else {
-            xx = x1 + param * C;
-            yy = y1 + param * D;
-        }
-
-        const dx = x - xx;
-        const dy = y - yy;
-
-        return Math.sqrt(dx * dx + dy * dy);
-    }
 
     // 연결선 선택
     selectConnection(connection) {
@@ -956,36 +707,6 @@ class PrototypingTool {
                 mobileOverlay.remove();
             });
         }
-    }
-
-    // 모든 연결선 업데이트
-    updateAllConnections() {
-        this.connections.forEach(connection => {
-            const svg = document.querySelector(`[data-connection-id="${connection.id}"]`);
-            if (svg) {
-                const line = svg.querySelector('line');
-                if (line) {
-                    this.updateConnectionPosition(connection, line);
-                }
-            }
-        });
-    }
-
-
-    // transform 원점 유지
-    updateCanvasTransform() {
-        const canvas = document.getElementById('canvas');
-        
-        // transform 적용
-        canvas.style.transform = `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`;
-        canvas.style.transformOrigin = '0 0';
-        
-        // requestAnimationFrame을 사용하여 다음 프레임에서 연결선 업데이트
-        requestAnimationFrame(() => {
-            this.connections.forEach(connection => {
-                this.orthogonalConnectionManager.updateConnection(connection);
-            });
-        });
     }
 
     createPage(pageName) {
@@ -1202,17 +923,6 @@ class PrototypingTool {
     resetZoom() {
         this.scale = 1;
         this.canvasOffset = { x: 0, y: 0 };
-        this.updateCanvasTransform();
-    }
-    
-    handlePan = (e) => {
-        const dx = e.clientX - this.lastPanPosition.x;
-        const dy = e.clientY - this.lastPanPosition.y;
-    
-        this.canvasOffset.x += dx;
-        this.canvasOffset.y += dy;
-    
-        this.lastPanPosition = { x: e.clientX, y: e.clientY };
         this.updateCanvasTransform();
     }
     
@@ -1485,19 +1195,6 @@ class PrototypingTool {
         this.renderElement(element);
         this.selectElement(element);
         this.saveHistory();
-    }
-
-    // 빈 테이블 데이터 생성
-    generateEmptyTableData(rows, cols) {
-        const data = [];
-        for (let i = 0; i < rows; i++) {
-            const row = [];
-            for (let j = 0; j < cols; j++) {
-                row.push(i === 0 ? `Header ${j + 1}` : `Cell ${i},${j + 1}`);
-            }
-            data.push(row);
-        }
-        return data;
     }
 
     // renderTableElement 메서드 수정
@@ -1876,37 +1573,6 @@ class PrototypingTool {
         });
     }
 
-    // 연결선 위치 업데이트
-    updateConnectionPosition(connection, path) {
-        const sourcePoint = this.orthogonalConnectionManager.getConnectionPoint(connection.sourceId, connection.sourcePosition);
-        const targetPoint = this.orthogonalConnectionManager.getConnectionPoint(connection.targetId, connection.targetPosition);
-        
-        if (!sourcePoint || !targetPoint) return;
-
-        const points = this.orthogonalConnectionManager.calculateOrthogonalPath(sourcePoint, targetPoint);
-        const pathD = this.orthogonalConnectionManager.createSvgPath(points);
-        
-        // 경로 업데이트
-        path.setAttribute('d', pathD);
-    
-        // 레이블 위치 업데이트
-        const labelElement = path.parentElement?.querySelector('text');
-        if (labelElement) {
-            // 중간점 계산
-            const midPoint = this.connectionManager.getMidPoint(points);
-            labelElement.setAttribute('x', midPoint.x);
-            labelElement.setAttribute('y', midPoint.y);
-            
-            // 레이블 방향 조정
-            const angle = this.calculateLabelAngle(points);
-            if (angle !== 0) {
-                labelElement.setAttribute('transform', `rotate(${angle} ${midPoint.x} ${midPoint.y})`);
-            } else {
-                labelElement.removeAttribute('transform');
-            }
-        }
-    }
-
     calculateLabelAngle(points) {
         const midIndex = Math.floor(points.length / 2);
         const p1 = points[midIndex - 1];
@@ -1994,42 +1660,6 @@ class PrototypingTool {
         }
     }
 
-    // 연결선 편집 기능
-    editConnection(connectionId) {
-        const connection = this.connections.find(c => c.id === connectionId);
-        if (connection) {
-            this.showRelationDialog(
-                connection.sourceId,
-                connection.targetId,
-                connection.sourcePosition,
-                connection.targetPosition,
-                true
-            );
-        }
-    }
-
-    // 연결선 스타일 설정
-    setConnectionStyle(connectionId, style) {
-        const connection = this.connections.find(c => c.id === connectionId);
-        if (connection) {
-            const line = document.querySelector(`[data-connection-id="${connectionId}"] line`);
-            if (line) {
-                Object.assign(line.style, style);
-            }
-            this.saveHistory();
-        }
-    }
-
-    // 연결선 자동 정렬
-    autoLayoutConnections() {
-        this.connections.forEach(connection => {
-            const sourcePoint = this.getConnectionPoint(connection.sourceId, connection.sourcePosition);
-            const targetPoint = this.getConnectionPoint(connection.targetId, connection.targetPosition);
-            if (sourcePoint && targetPoint) {
-                this.updateConnectionPosition(connection);
-            }
-        });
-    }
 
     // 테이블 행 생성을 별도의 메서드로 분리
     createTableRow(element, column, rowIndex) {
@@ -3080,72 +2710,6 @@ class PrototypingTool {
                     </div>
                     ${this.createStickyControls(element)}
                 `
-            }),
-
-            table: (element) => ({
-                title: 'Table Style',
-                html: `
-                    <div class="table-controls">
-                        <div class="control-group">
-                            <label>Rows</label>
-                            <input type="number" 
-                                min="1" 
-                                max="20" 
-                                value="${element.rows}"
-                                onchange="tool.updateTableStructure(this.value, 'rows')">
-                        </div>
-                        <div class="control-group">
-                            <label>Columns</label>
-                            <input type="number" 
-                                min="1" 
-                                max="10" 
-                                value="${element.cols}"
-                                onchange="tool.updateTableStructure(this.value, 'cols')">
-                        </div>
-                        <div class="control-group">
-                            <label>Cell Padding</label>
-                            <input type="number"
-                                min="0"
-                                max="20"
-                                value="${element.cellPadding}"
-                                onchange="tool.updateTableStyle('cellPadding', this.value)">
-                        </div>
-                        <div class="control-group">
-                            <label>Font Size</label>
-                            <input type="number"
-                                min="8"
-                                max="24"
-                                value="${element.fontSize}"
-                                onchange="tool.updateTableStyle('fontSize', this.value)">
-                        </div>
-                        <div class="color-controls">
-                            <div class="color-control">
-                                <label>Border Color</label>
-                                <input type="color" 
-                                    value="${element.borderColor}"
-                                    onchange="tool.updateTableStyle('borderColor', this.value)">
-                            </div>
-                            <div class="color-control">
-                                <label>Header Background</label>
-                                <input type="color" 
-                                    value="${element.headerBgColor}"
-                                    onchange="tool.updateTableStyle('headerBgColor', this.value)">
-                            </div>
-                            <div class="color-control">
-                                <label>Cell Background</label>
-                                <input type="color" 
-                                    value="${element.cellBgColor}"
-                                    onchange="tool.updateTableStyle('cellBgColor', this.value)">
-                            </div>
-                            <div class="color-control">
-                                <label>Text Color</label>
-                                <input type="color" 
-                                    value="${element.textColor}"
-                                    onchange="tool.updateTableStyle('textColor', this.value)">
-                            </div>
-                        </div>
-                    </div>
-                `
             })
         };
     
@@ -3228,109 +2792,6 @@ class PrototypingTool {
         `;
     }
 
-    // 테이블 구조 업데이트 메서드
-    updateTableStructure(value, type) {
-        if (!this.selectedElement || this.selectedElement.type !== 'table') return;
-        
-        const newValue = parseInt(value);
-        if (isNaN(newValue) || newValue < 1) return;
-        
-        const element = this.selectedElement;
-        
-        // 기존 데이터를 복사
-        const oldData = JSON.parse(JSON.stringify(element.data));
-        let newData = [];
-        
-        if (type === 'rows') {
-            element.rows = newValue;
-            // 행 수 조정
-            for (let i = 0; i < newValue; i++) {
-                if (i < oldData.length) {
-                    // 기존 행 유지
-                    newData.push(oldData[i]);
-                } else {
-                    // 새 행 추가
-                    const newRow = [];
-                    for (let j = 0; j < element.cols; j++) {
-                        newRow.push(`Cell ${i},${j + 1}`);
-                    }
-                    newData.push(newRow);
-                }
-            }
-        } else if (type === 'cols') {
-            element.cols = newValue;
-            // 열 수 조정
-            for (let i = 0; i < element.rows; i++) {
-                const newRow = [];
-                const oldRow = oldData[i] || [];
-                
-                for (let j = 0; j < newValue; j++) {
-                    if (j < oldRow.length) {
-                        // 기존 열 데이터 유지
-                        newRow.push(oldRow[j]);
-                    } else {
-                        // 새 열 데이터 추가
-                        newRow.push(i === 0 ? `Header ${j + 1}` : `Cell ${i},${j + 1}`);
-                    }
-                }
-                newData.push(newRow);
-            }
-        }
-        
-        // 새 데이터로 업데이트
-        element.data = newData;
-        
-        // 테이블 재렌더링
-        const elementDiv = document.getElementById(`element-${element.id}`);
-        if (elementDiv) {
-            const oldContainer = elementDiv.querySelector('.table-container');
-            if (oldContainer) {
-                elementDiv.removeChild(oldContainer);
-            }
-            
-            // 테이블 컨테이너 새로 생성
-            const container = document.createElement('div');
-            container.className = 'table-container';
-            container.style.width = '100%';
-            container.style.height = '100%';
-            container.style.overflow = 'auto';
-    
-            const table = document.createElement('table');
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-            table.style.fontSize = `${element.fontSize}px`;
-            table.style.color = element.textColor;
-    
-            element.data.forEach((rowData, i) => {
-                const row = document.createElement('tr');
-                rowData.forEach((cellData, j) => {
-                    const cell = document.createElement(i === 0 ? 'th' : 'td');
-                    cell.textContent = cellData;
-                    cell.style.padding = `${element.cellPadding}px`;
-                    cell.style.border = `1px solid ${element.borderColor}`;
-                    cell.style.backgroundColor = i === 0 ? element.headerBgColor : element.cellBgColor;
-                    cell.style.fontWeight = i === 0 ? element.headerFontWeight : element.cellFontWeight;
-                    
-                    // 셀 편집 이벤트 리스너 추가
-                    cell.addEventListener('dblclick', (e) => {
-                        if (!this.previewMode) {
-                            e.stopPropagation();
-                            this.startEditingTableCell(element, i, j, e.target);
-                        }
-                    });
-                    
-                    row.appendChild(cell);
-                });
-                table.appendChild(row);
-            });
-    
-            container.appendChild(table);
-            elementDiv.appendChild(container);
-        }
-        
-        this.saveHistory();
-        this.updateProperties();
-    }
     
 
     // 테이블 스타일 업데이트 메서드
@@ -3531,16 +2992,6 @@ class PrototypingTool {
         
         this.saveHistory();
         this.updateProperties();
-    }
-
-    updateBoxColor(color) {
-        if (!this.selectedElement || this.selectedElement.type !== 'box') return;
-        
-        this.selectedElement.backgroundColor = color;
-        const elementDiv = document.getElementById(`element-${this.selectedElement.id}`);
-        elementDiv.style.backgroundColor = color;
-        
-        this.saveHistory();
     }
 
     updateStickyColor(color) {
