@@ -468,9 +468,16 @@ class ConnectionManager {
                     </div>
                 </div>
             </div>
-            <button onclick="tool.connectionManager.showRelationEditDialog(tool.connections.find(c => c.id === ${connection.id}))">
-                Edit Relationship
-            </button>
+            <div class="property-group">
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="tool.connectionManager.showRelationEditDialog(tool.connections.find(c => c.id === ${connection.id}))">
+                        Edit Relationship
+                    </button>
+                    <button onclick="tool.deleteConnection(${connection.id})" style="background-color: #ff4444; color: white;">
+                        Delete Relationship
+                    </button>
+                </div>
+            </div>
         `;
     }
     
@@ -750,7 +757,12 @@ class PrototypingTool {
             if (this.selectedElement) {
                 // Delete 키 처리
                 if (e.key === 'Delete') {
-                    this.deleteSelected();
+                    if (this.selectedConnection) {
+                        this.deleteConnection(this.selectedConnection.id);
+                        this.selectedConnection = null;
+                    } else if (this.selectedElement) {
+                        this.deleteSelected();
+                    }
                     return;
                 }
     
@@ -1651,12 +1663,24 @@ class PrototypingTool {
 
     // 연결선 삭제 기능 추가
     deleteConnection(connectionId) {
+        // 연결선 제거
         const connection = this.connections.find(c => c.id === connectionId);
         if (connection) {
             // SVG 요소 제거
-            document.querySelector(`[data-connection-id="${connectionId}"]`)?.remove();
-            // 배열에서 제거
+            const svg = document.querySelector(`[data-connection-id="${connectionId}"]`);
+            if (svg) {
+                svg.remove();
+            }
+    
+            // connections 배열에서 제거
             this.connections = this.connections.filter(c => c.id !== connectionId);
+    
+            // 프로퍼티 패널 초기화
+            if (this.selectedConnection && this.selectedConnection.id === connectionId) {
+                this.selectedConnection = null;
+                this.updateProperties();
+            }
+    
             this.saveHistory();
         }
     }
