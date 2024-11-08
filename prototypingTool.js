@@ -10,12 +10,15 @@ class OrthogonalConnectionManager {
     calculateOrthogonalPath(start, end) {
         const path = [];
         path.push([start.x, start.y]); // 시작점
-
+    
         const dx = end.x - start.x;
         const dy = end.y - start.y;
         const midX = start.x + dx / 2;
         const midY = start.y + dy / 2;
-
+    
+        // 패딩 값을 scale에 따라 조정
+        const adjustedPadding = this.padding / this.tool.scale;
+    
         // 연결 방향에 따른 경로 계산
         switch (start.position + '-' + end.position) {
             case 'right-left':
@@ -30,29 +33,29 @@ class OrthogonalConnectionManager {
                 break;
             case 'top-left':
             case 'top-right':
-                path.push([start.x, start.y - this.padding]);
-                path.push([end.x, start.y - this.padding]);
+                path.push([start.x, start.y - adjustedPadding]);
+                path.push([end.x, start.y - adjustedPadding]);
                 break;
             case 'bottom-left':
             case 'bottom-right':
-                path.push([start.x, start.y + this.padding]);
-                path.push([end.x, start.y + this.padding]);
+                path.push([start.x, start.y + adjustedPadding]);
+                path.push([end.x, start.y + adjustedPadding]);
                 break;
             case 'left-top':
             case 'right-top':
-                path.push([start.x - this.padding, start.y]);
-                path.push([start.x - this.padding, end.y]);
+                path.push([start.x - adjustedPadding, start.y]);
+                path.push([start.x - adjustedPadding, end.y]);
                 break;
             case 'left-bottom':
             case 'right-bottom':
-                path.push([start.x + this.padding, start.y]);
-                path.push([start.x + this.padding, end.y]);
+                path.push([start.x + adjustedPadding, start.y]);
+                path.push([start.x + adjustedPadding, end.y]);
                 break;
             default:
                 path.push([midX, start.y]);
                 path.push([midX, end.y]);
         }
-
+    
         path.push([end.x, end.y]); // 끝점
         return path;
     }
@@ -97,32 +100,37 @@ class OrthogonalConnectionManager {
         const end = this.getConnectionPoint(connection.targetId, connection.targetPosition);
         
         if (!start || !end) return;
-
-        // 수정된 부분: 연결선의 경로를 다시 계산하고 SVG path 업데이트
+    
         const points = this.calculateOrthogonalPath(start, end);
-        if (!points || points.length < 2) return;  // points 배열 검증 추가
-
+        if (!points || points.length < 2) return;
+    
         const pathD = this.createSvgPath(points);
-        if (!pathD) return; // pathD가 유효하지 않으면 리턴
-
+        if (!pathD) return;
+    
         const svg = document.querySelector(`[data-connection-id="${connection.id}"]`);
         if (svg) {
             const path = svg.querySelector('path');
             if (path) {
                 path.setAttribute('d', pathD);
             }
-
-            // 레이블 위치도 업데이트
+    
+            // 레이블 위치 업데이트
             const text = svg.querySelector('text');
-            if (text && points.length > 0) {  // points 배열이 비어있지 않은지 확인
+            if (text) {
                 const midPoint = this.getMidPoint(points);
-                if (midPoint && typeof midPoint.x === 'number' && typeof midPoint.y === 'number') {
+                if (midPoint) {
+                    // 레이블 위치도 scale 고려하여 조정
                     text.setAttribute('x', midPoint.x.toString());
                     text.setAttribute('y', midPoint.y.toString());
+                    
+                    // 레이블 크기도 scale에 따라 조정
+                    const fontSize = 12 / this.tool.scale;
+                    text.setAttribute('font-size', `${fontSize}px`);
                 }
             }
         }
     }
+    
 
     // 중간점 계산
     getMidPoint(points) {
@@ -138,26 +146,51 @@ class OrthogonalConnectionManager {
         const element = document.getElementById(`element-${elementId}`);
         if (!element) return null;
     
-        const rect = element.getBoundingClientRect();
         const canvas = document.getElementById('canvas');
+        const canvasArea = document.querySelector('.canvas-area');
+        
+        // 엘리먼트와 캔버스의 경계 상자 가져오기
+        const elementRect = element.getBoundingClientRect();
         const canvasRect = canvas.getBoundingClientRect();
+        
+        // 스크롤 위치 고려
+        const scrollLeft = canvasArea.scrollLeft;
+        const scrollTop = canvasArea.scrollTop;
     
-        // 캔버스의 transform 상태를 고려한 좌표 계산
-        const x = (rect.left - canvasRect.left) / this.tool.scale - this.tool.canvasOffset.x / this.tool.scale;
-        const y = (rect.top - canvasRect.top) / this.tool.scale - this.tool.canvasOffset.y / this.tool.scale;
-        const width = rect.width / this.tool.scale;
-        const height = rect.height / this.tool.scale;
+        // 캔버스의 transform 상태를 고려한 실제 좌표 계산
+        const x = (elementRect.left - canvasRect.left + scrollLeft) / this.tool.scale;
+        const y = (elementRect.top - canvasRect.top + scrollTop) / this.tool.scale;
+        
+        // 실제 크기 계산
+        const width = elementRect.width / this.tool.scale;
+        const height = elementRect.height / this.tool.scale;
     
-        // 각 위치에 따른 연결점 위치 반환
+        // 각 위치별 연결점 좌표 반환
         switch (position) {
             case 'top':
-                return { x: x + width / 2, y, position: 'top' };
+                return {
+                    x: x + width / 2,
+                    y: y,
+                    position: 'top'
+                };
             case 'right':
-                return { x: x + width, y: y + height / 2, position: 'right' };
+                return {
+                    x: x + width,
+                    y: y + height / 2,
+                    position: 'right'
+                };
             case 'bottom':
-                return { x: x + width / 2, y: y + height, position: 'bottom' };
+                return {
+                    x: x + width / 2,
+                    y: y + height,
+                    position: 'bottom'
+                };
             case 'left':
-                return { x, y: y + height / 2, position: 'left' };
+                return {
+                    x: x,
+                    y: y + height / 2,
+                    position: 'left'
+                };
             default:
                 return null;
         }
@@ -942,11 +975,17 @@ class PrototypingTool {
     // transform 원점 유지
     updateCanvasTransform() {
         const canvas = document.getElementById('canvas');
+        
+        // transform 적용
         canvas.style.transform = `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`;
         canvas.style.transformOrigin = '0 0';
         
-        // 캔버스 transform이 변경될 때마다 연결선 업데이트
-        this.updateAllConnections();
+        // requestAnimationFrame을 사용하여 다음 프레임에서 연결선 업데이트
+        requestAnimationFrame(() => {
+            this.connections.forEach(connection => {
+                this.orthogonalConnectionManager.updateConnection(connection);
+            });
+        });
     }
 
     createPage(pageName) {
@@ -1031,9 +1070,19 @@ class PrototypingTool {
                 }
             }
         });
-    
+
         // 줌과 패닝 이벤트 초기화
         this.initializeZoomAndPan();
+
+        // 스크롤 이벤트 처리 추가
+        const canvasArea = document.querySelector('.canvas-area');
+        canvasArea.addEventListener('scroll', () => {
+            requestAnimationFrame(() => {
+                this.connections.forEach(connection => {
+                    this.orthogonalConnectionManager.updateConnection(connection);
+                });
+            });
+        });
     }
 
     initializeZoomAndPan() {
